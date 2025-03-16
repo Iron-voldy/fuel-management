@@ -1,80 +1,59 @@
 const mongoose = require('mongoose');
 
-const BankTransactionSchema = new mongoose.Schema({
-  transactionId: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  accountId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'BankAccount',
-    required: true
-  },
-  date: {
-    type: Date,
-    required: true,
-    default: Date.now
-  },
-  type: {
-    type: String,
-    enum: ['deposit', 'withdrawal', 'transfer', 'interest', 'charge', 'other'],
-    required: true
-  },
-  amount: {
-    type: Number,
-    required: true
-  },
-  balanceAfterTransaction: {
-    type: Number,
-    required: true
-  },
-  description: {
-    type: String,
-    required: true
-  },
-  category: {
-    type: String,
-    required: true,
-    enum: [
-      'sales', 'fuel_purchase', 'salary', 'rent', 
-      'utilities', 'maintenance', 'taxes', 'insurance', 
-      'loan_repayment', 'equipment', 'transfer', 'other'
-    ]
-  },
-  paymentMethod: {
-    type: String,
-    enum: ['cash', 'cheque', 'transfer', 'online', 'card', 'other'],
-    required: true
-  },
-  referenceNumber: {
-    type: String
-  },
-  chequeNumber: {
-    type: String
-  },
-  // For transfers between accounts
-  relatedAccountId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'BankAccount'
-  },
-  // For reconciliation
-  reconciled: {
-    type: Boolean,
-    default: false
-  },
-  reconciliationDate: {
-    type: Date
-  },
-  attachments: [String],
-  stationId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Station'
-  },
-  createdBy: {
+const BankAccountSchema = new mongoose.Schema({
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  accountName: {
+    type: String,
+    required: [true, 'Account name is required']
+  },
+  accountNumber: {
+    type: String,
+    required: [true, 'Account number is required']
+  },
+  bankName: {
+    type: String,
+    required: [true, 'Bank name is required']
+  },
+  branchName: {
+    type: String,
+    default: ''
+  },
+  routingNumber: {
+    type: String,
+    default: ''
+  },
+  accountType: {
+    type: String,
+    enum: ['Checking', 'Savings', 'Credit Card', 'Loan', 'Investment', 'Other'],
+    default: 'Checking'
+  },
+  openingBalance: {
+    type: Number,
+    default: 0
+  },
+  currentBalance: {
+    type: Number,
+    default: 0
+  },
+  notes: {
+    type: String,
+    default: ''
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  lastReconciled: {
+    type: Date,
+    default: null
+  },
+  reconciliationNotes: {
+    type: String,
+    default: ''
   },
   createdAt: {
     type: Date,
@@ -84,6 +63,46 @@ const BankTransactionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+}, {
+  timestamps: true
 });
 
-module.exports = mongoose.model('BankTransaction', BankTransactionSchema);
+// Create compound index for user + account number + bank name
+BankAccountSchema.index({ user: 1, accountNumber: 1, bankName: 1 }, { unique: true });
+
+// Index for faster queries
+BankAccountSchema.index({ user: 1, isActive: 1 });
+
+// Pre-save hook to update the updatedAt field
+BankAccountSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+// Virtual for formatted balance
+BankAccountSchema.virtual('formattedBalance').get(function() {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(this.currentBalance);
+});
+
+// Method to check if account has sufficient funds
+BankAccountSchema.methods.hasSufficientFunds = function(amount) {
+  return this.currentBalance >= amount;
+};
+
+// Method to update balance
+BankAccountSchema.methods.updateBalance = function(amount, isDeposit) {
+  if (isDeposit) {
+    this.currentBalance += amount;
+  } else {
+    if (!this.hasSufficientFunds(amount)) {
+      throw new Error('Insufficient funds');
+    }
+    this.currentBalance -= amount;
+  }
+  return this.save();
+};
+
+module.exports = mongoose.model('BankAccount', BankAccountSchema);
