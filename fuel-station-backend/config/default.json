@@ -1,0 +1,12 @@
+{
+    "mongoURI": "mongodb+srv://sithmi:12123@fuel-station.44ags.mongodb.net/?retryWrites=true&w=majority&appName=fuel-station",
+    "jwtSecret": "28efbd2ee3d1625d41c9194718e1bc93",
+    "jwtExpiration": 86400,
+    "port": 5000,
+    "environment": "development",
+    "fileStorage": "./uploads",
+    "epfEmployeeRate": 8,
+    "epfEmployerRate": 12,
+    "etfRate": 3,
+    "loanInterestRate": 23
+  }
