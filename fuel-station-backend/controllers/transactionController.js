@@ -3,6 +3,7 @@ const { validationResult } = require('express-validator');
 const BankTransaction = require('../models/BankTransaction');
 const BankAccount = require('../models/BankAccount');
 const crypto = require('crypto');
+const validators = require('../utils/validators'); // Add this import
 
 
 // @desc    Get all transactions with optional filtering
@@ -157,8 +158,12 @@ exports.createTransaction = async (req, res) => {
       }
     }
 
+    // Generate a unique transaction ID
+    const transactionId = await validators.generateTransactionId();
+
     // Create transaction
     const newTransaction = new BankTransaction({
+      transactionId, // Add the generated transaction ID
       account: accountId,
       amount,
       type,

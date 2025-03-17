@@ -6,6 +6,11 @@ const BankTransactionSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  transactionId: {
+    type: String,
+    required: true,
+    unique: true
+  },
   account: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'BankAccount',
