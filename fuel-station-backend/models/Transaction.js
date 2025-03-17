@@ -1,10 +1,61 @@
-const express = require('express');
-const router = express.Router();
-const auth = require('../middleware/auth');
+const mongoose = require('mongoose');
 
-// Placeholder route
-router.get('/', auth, (req, res) => {
-  res.json({ msg: 'Transactions API' });
+const TransactionSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  transactionId: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  date: {
+    type: Date,
+    default: Date.now
+  },
+  stationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Station'
+  },
+  type: {
+    type: String,
+    enum: ['sale', 'purchase', 'expense', 'salary', 'transfer', 'other'],
+    required: true
+  },
+  amount: {
+    type: Number,
+    required: true
+  },
+  description: {
+    type: String,
+    required: true
+  },
+  category: {
+    type: String,
+    default: 'Uncategorized'
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['cash', 'bank', 'card', 'credit', 'other'],
+    default: 'cash'
+  },
+  relatedDocumentId: {
+    type: String
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
-module.exports = router;
+module.exports = mongoose.model('Transaction', TransactionSchema);
