@@ -3,6 +3,7 @@ const Expense = require('../models/Expense');
 const BankTransaction = require('../models/BankTransaction');
 const BankAccount = require('../models/BankAccount');
 const crypto = require('crypto');
+const validators = require('../utils/validators'); // Ensure this import is present
 
 // Helper function to generate unique expense ID
 const generateExpenseId = () => {
@@ -187,9 +188,12 @@ exports.createExpense = async (req, res) => {
         });
       }
       
+      // Generate transaction ID - FIXED: Added await here
+      const transactionId = await validators.generateTransactionId();
+      
       // Create the bank transaction
       const bankTransaction = new BankTransaction({
-        transactionId: require('../utils/validators').generateTransactionId(),
+        transactionId, // Now this will be a string, not a Promise
         user: req.user.id,
         account: req.body.accountId,
         amount: req.body.amount,
@@ -418,9 +422,12 @@ exports.approveExpense = async (req, res) => {
         });
       }
       
+      // FIXED: Added await here
+      const transactionId = await validators.generateTransactionId();
+      
       // Create the bank transaction
       const bankTransaction = new BankTransaction({
-        transactionId: await require('../utils/validators').generateTransactionId(),
+        transactionId, // Now this will be a string, not a Promise
         user: req.user.id,
         account: req.body.accountId,
         amount: expense.amount,
