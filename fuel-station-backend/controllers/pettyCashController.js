@@ -159,203 +159,6 @@ exports.createWithdrawalRequest = async (req, res) => {
   }
 
   try {
-    const { maxLimit, minLimit } = req.body;
-    const stationId = req.params.stationId || req.user.stationId;
-    
-    if (!stationId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Station ID is required'
-      });
-    }
-
-    // Get or create balance record
-    let balance = await PettyCashBalance.findOne({ stationId });
-    
-    if (!balance) {
-      balance = new PettyCashBalance({
-        stationId,
-        currentBalance: 0,
-        updatedBy: req.user.id
-      });
-    }
-
-    // Update settings
-    if (maxLimit !== undefined) {
-      balance.maxLimit = maxLimit;
-    }
-    
-    if (minLimit !== undefined) {
-      balance.minLimit = minLimit;
-    }
-    
-    balance.updatedBy = req.user.id;
-    await balance.save();
-
-    res.json({
-      success: true,
-      data: balance
-    });
-  } catch (err) {
-    console.error('Error updating petty cash settings:', err.message);
-    res.status(500).json({
-      success: false,
-      error: 'Server Error'
-    });
-  }
-};
-
-// @desc    Get petty cash summary and statistics
-// @route   GET /api/petty-cash/summary
-// @access  Private
-exports.getSummary = async (req, res) => {
-  try {
-    const { 
-      stationId, 
-      period = 'month',
-      startDate,
-      endDate
-    } = req.query;
-
-    // Build station filter
-    const stationFilter = {};
-    if (stationId) {
-      stationFilter.stationId = stationId;
-    } else if (req.user.stationId) {
-      stationFilter.stationId = req.user.stationId;
-    }
-
-    // Set date range based on period
-    const today = new Date();
-    let periodStartDate, periodEndDate;
-
-    if (!startDate) {
-      switch(period) {
-        case 'day':
-          periodStartDate = new Date(today.setHours(0, 0, 0, 0));
-          break;
-        case 'week':
-          periodStartDate = new Date(today);
-          periodStartDate.setDate(periodStartDate.getDate() - periodStartDate.getDay());
-          periodStartDate.setHours(0, 0, 0, 0);
-          break;
-        case 'month':
-          periodStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
-          break;
-        case 'quarter':
-          const quarter = Math.floor(today.getMonth() / 3);
-          periodStartDate = new Date(today.getFullYear(), quarter * 3, 1);
-          break;
-        case 'year':
-          periodStartDate = new Date(today.getFullYear(), 0, 1);
-          break;
-        default:
-          periodStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      }
-    } else {
-      periodStartDate = new Date(startDate);
-    }
-
-    periodEndDate = endDate ? new Date(endDate) : new Date();
-
-    // Get current balances
-    const balances = await PettyCashBalance.find(stationFilter);
-    
-    const totalCurrentBalance = balances.reduce((sum, balance) => sum + balance.currentBalance, 0);
-
-    // Get withdrawals for the period
-    const withdrawals = await PettyCash.find({
-      ...stationFilter,
-      approvalStatus: 'Approved',
-      transactionType: 'withdrawal',
-      date: { $gte: periodStartDate, $lte: periodEndDate }
-    });
-
-    // Get replenishments for the period
-    const replenishments = await PettyCash.find({
-      ...stationFilter,
-      approvalStatus: 'Approved',
-      transactionType: 'replenishment',
-      date: { $gte: periodStartDate, $lte: periodEndDate }
-    });
-
-    // Calculate totals
-    const totalWithdrawals = withdrawals.reduce((sum, tx) => sum + tx.amount, 0);
-    const totalReplenishments = replenishments.reduce((sum, tx) => sum + tx.amount, 0);
-
-    // Group withdrawals by category
-    const withdrawalsByCategory = {};
-    withdrawals.forEach(withdrawal => {
-      if (!withdrawalsByCategory[withdrawal.category]) {
-        withdrawalsByCategory[withdrawal.category] = 0;
-      }
-      withdrawalsByCategory[withdrawal.category] += withdrawal.amount;
-    });
-
-    // Calculate top expense categories
-    const topCategories = Object.entries(withdrawalsByCategory)
-      .map(([category, amount]) => ({ category, amount }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5);
-
-    // Get pending requests
-    const pendingRequests = await PettyCash.find({
-      ...stationFilter,
-      approvalStatus: 'Pending',
-      transactionType: 'withdrawal'
-    })
-    .sort({ date: 1 })
-    .populate('requestedBy', 'name');
-
-    const totalPendingAmount = pendingRequests.reduce((sum, req) => sum + req.amount, 0);
-
-    // Prepare the response
-    res.json({
-      success: true,
-      data: {
-        period: {
-          start: periodStartDate,
-          end: periodEndDate,
-          name: period
-        },
-        summary: {
-          currentBalance: totalCurrentBalance,
-          totalWithdrawals,
-          totalReplenishments,
-          netChange: totalReplenishments - totalWithdrawals,
-          withdrawalsByCategory,
-          topCategories
-        },
-        pendingRequests: {
-          count: pendingRequests.length,
-          amount: totalPendingAmount,
-          requests: pendingRequests.slice(0, 5) // Only return the first 5
-        },
-        stations: balances.map(balance => ({
-          stationId: balance.stationId,
-          currentBalance: balance.currentBalance,
-          maxLimit: balance.maxLimit,
-          minLimit: balance.minLimit,
-          needsReplenishment: balance.currentBalance < balance.minLimit
-        }))
-      }
-    });
-  } catch (err) {
-    console.error('Error getting petty cash summary:', err.message);
-    res.status(500).json({
-      success: false,
-      error: 'Server Error'
-    });
-  }
-};(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      errors: errors.array()
-    });
-  }
-
-  try {
     const { 
       stationId,
       amount, 
@@ -534,7 +337,7 @@ exports.createReplenishment = async (req, res) => {
     if (accountId) {
       // Generate bank transaction ID
       const bankTransactionId = 'BNK' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + 
-                                 Math.floor(1000 + Math.random() * 9000);
+                               Math.floor(1000 + Math.random() * 9000);
       
       // Create the bank transaction
       const bankTransaction = new BankTransaction({
@@ -1037,72 +840,215 @@ exports.getBalance = async (req, res) => {
   }
 };
 
-// @desc    Update petty cash balance settings
-// @route   PUT /api/petty-cash/balance/:stationId
-// @access  Private (Admin/Manager)
+// @desc    Get petty cash summary and statistics
+// @route   GET /api/petty-cash/summary
+// @access  Private
+exports.getSummary = async (req, res) => {
+  try {
+    const { 
+      stationId, 
+      period = 'month',
+      startDate,
+      endDate
+    } = req.query;
+
+    // Build station filter
+    const stationFilter = {};
+    if (stationId) {
+      stationFilter.stationId = stationId;
+    } else if (req.user.stationId) {
+      stationFilter.stationId = req.user.stationId;
+    }
+
+    // Set date range based on period
+    const today = new Date();
+    let periodStartDate, periodEndDate;
+
+    if (!startDate) {
+      switch(period) {
+        case 'day':
+          periodStartDate = new Date(today.setHours(0, 0, 0, 0));
+          break;
+        case 'week':
+          periodStartDate = new Date(today);
+          periodStartDate.setDate(periodStartDate.getDate() - periodStartDate.getDay());
+          periodStartDate.setHours(0, 0, 0, 0);
+          break;
+        case 'month':
+          periodStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
+          break;
+        case 'quarter':
+          const quarter = Math.floor(today.getMonth() / 3);
+          periodStartDate = new Date(today.getFullYear(), quarter * 3, 1);
+          break;
+        case 'year':
+          periodStartDate = new Date(today.getFullYear(), 0, 1);
+          break;
+        default:
+          periodStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      }
+    } else {
+      periodStartDate = new Date(startDate);
+    }
+
+    periodEndDate = endDate ? new Date(endDate) : new Date();
+
+    // Get current balances
+    const balances = await PettyCashBalance.find(stationFilter);
+    
+    const totalCurrentBalance = balances.reduce((sum, balance) => sum + balance.currentBalance, 0);
+
+    // Get withdrawals for the period
+    const withdrawals = await PettyCash.find({
+      ...stationFilter,
+      approvalStatus: 'Approved',
+      transactionType: 'withdrawal',
+      date: { $gte: periodStartDate, $lte: periodEndDate }
+    });
+
+    // Get replenishments for the period
+    const replenishments = await PettyCash.find({
+      ...stationFilter,
+      approvalStatus: 'Approved',
+      transactionType: 'replenishment',
+      date: { $gte: periodStartDate, $lte: periodEndDate }
+    });
+
+    // Calculate totals
+    const totalWithdrawals = withdrawals.reduce((sum, tx) => sum + tx.amount, 0);
+    const totalReplenishments = replenishments.reduce((sum, tx) => sum + tx.amount, 0);
+
+    // Group withdrawals by category
+    const withdrawalsByCategory = {};
+    withdrawals.forEach(withdrawal => {
+      if (!withdrawalsByCategory[withdrawal.category]) {
+        withdrawalsByCategory[withdrawal.category] = 0;
+      }
+      withdrawalsByCategory[withdrawal.category] += withdrawal.amount;
+    });
+
+    // This code should be appended to the pettyCashController.js file where it left off
+
+    // Calculate top expense categories
+    const topCategories = Object.entries(withdrawalsByCategory)
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+
+    // Get pending requests
+    const pendingRequests = await PettyCash.find({
+      ...stationFilter,
+      approvalStatus: 'Pending',
+      transactionType: 'withdrawal'
+    })
+    .sort({ date: 1 })
+    .populate('requestedBy', 'name');
+
+    const totalPendingAmount = pendingRequests.reduce((sum, req) => sum + req.amount, 0);
+
+    // Prepare the response
+    res.json({
+      success: true,
+      data: {
+        period: {
+          start: periodStartDate,
+          end: periodEndDate,
+          name: period
+        },
+        summary: {
+          currentBalance: totalCurrentBalance,
+          totalWithdrawals,
+          totalReplenishments,
+          netChange: totalReplenishments - totalWithdrawals,
+          withdrawalsByCategory,
+          topCategories
+        },
+        pendingRequests: {
+          count: pendingRequests.length,
+          amount: totalPendingAmount,
+          requests: pendingRequests.slice(0, 5) // Only return the first 5
+        },
+        stations: balances.map(balance => ({
+          stationId: balance.stationId,
+          currentBalance: balance.currentBalance,
+          maxLimit: balance.maxLimit,
+          minLimit: balance.minLimit,
+          needsReplenishment: balance.currentBalance < balance.minLimit
+        }))
+      }
+    });
+  } catch (err) {
+    console.error('Error getting petty cash summary:', err.message);
+    res.status(500).json({
+      success: false,
+      error: 'Server Error'
+    });
+  }
+};
+
 // @desc    Update petty cash balance settings
 // @route   PUT /api/petty-cash/balance/:stationId
 // @access  Private (Admin/Manager)
 exports.updateBalanceSettings = async (req, res) => {
-    // Only admins and managers can update petty cash settings
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-      return res.status(401).json({
-        success: false,
-        error: 'Not authorized to update petty cash settings'
-      });
-    }
-  
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+  // Only admins and managers can update petty cash settings
+  if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+    return res.status(401).json({
+      success: false,
+      error: 'Not authorized to update petty cash settings'
+    });
+  }
+
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      errors: errors.array()
+    });
+  }
+
+  try {
+    const { maxLimit, minLimit } = req.body;
+    const stationId = req.params.stationId || req.user.stationId;
+    
+    if (!stationId) {
       return res.status(400).json({
         success: false,
-        errors: errors.array()
+        error: 'Station ID is required'
       });
     }
-  
-    try {
-      const { maxLimit, minLimit } = req.body;
-      const stationId = req.params.stationId || req.user.stationId;
-      
-      if (!stationId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Station ID is required'
-        });
-      }
-  
-      // Get or create balance record
-      let balance = await PettyCashBalance.findOne({ stationId });
-      
-      if (!balance) {
-        balance = new PettyCashBalance({
-          stationId,
-          currentBalance: 0,
-          updatedBy: req.user.id
-        });
-      }
-  
-      // Update settings
-      if (maxLimit !== undefined) {
-        balance.maxLimit = maxLimit;
-      }
-      
-      if (minLimit !== undefined) {
-        balance.minLimit = minLimit;
-      }
-      
-      balance.updatedBy = req.user.id;
-      await balance.save();
-  
-      res.json({
-        success: true,
-        data: balance
-      });
-    } catch (err) {
-      console.error('Error updating petty cash settings:', err.message);
-      res.status(500).json({
-        success: false,
-        error: 'Server Error'
+
+    // Get or create balance record
+    let balance = await PettyCashBalance.findOne({ stationId });
+    
+    if (!balance) {
+      balance = new PettyCashBalance({
+        stationId,
+        currentBalance: 0,
+        updatedBy: req.user.id
       });
     }
-  };
+
+    // Update settings
+    if (maxLimit !== undefined) {
+      balance.maxLimit = maxLimit;
+    }
+    
+    if (minLimit !== undefined) {
+      balance.minLimit = minLimit;
+    }
+    
+    balance.updatedBy = req.user.id;
+    await balance.save();
+
+    res.json({
+      success: true,
+      data: balance
+    });
+  } catch (err) {
+    console.error('Error updating petty cash settings:', err.message);
+    res.status(500).json({
+      success: false,
+      error: 'Server Error'
+    });
+  }
+};
