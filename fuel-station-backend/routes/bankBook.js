@@ -170,19 +170,19 @@ router.get('/transactions/:id', auth, transactionController.getTransaction);
 // @desc    Create a new transaction
 // @access  Private
 router.post(
-  '/transactions',
-  [
-    auth,
+    '/transactions',
     [
-      check('accountId', 'Account ID is required').not().isEmpty(),
-      check('amount', 'Valid amount is required').isNumeric().custom(value => value > 0),
-      check('type', 'Transaction type must be deposit or withdrawal').isIn(['deposit', 'withdrawal']),
-      check('description', 'Description is required').not().isEmpty(),
-      check('date', 'Valid date is required').optional().isDate()
-    ]
-  ],
-  transactionController.createTransaction
-);
+      auth,
+      [
+        check('accountId', 'Account ID is required').not().isEmpty(),
+        check('amount', 'Valid amount is required').isNumeric().custom(value => value > 0),
+        check('type', 'Transaction type must be deposit or withdrawal').isIn(['deposit', 'withdrawal']),
+        check('description', 'Description is required').not().isEmpty(),
+        check('date', 'Valid date is required').optional().isISO8601()
+      ]
+    ],
+    transactionController.createTransaction
+  );
 
 // @route   PUT api/bank-book/transactions/:id
 // @desc    Update a transaction

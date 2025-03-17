@@ -58,4 +58,16 @@ const TransactionSchema = new mongoose.Schema({
   }
 });
 
+// Pre-save hook to update updatedAt
+TransactionSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+// Indexes for faster queries
+TransactionSchema.index({ user: 1, date: -1 });
+TransactionSchema.index({ type: 1 });
+TransactionSchema.index({ category: 1 });
+TransactionSchema.index({ paymentMethod: 1 });
+
 module.exports = mongoose.model('Transaction', TransactionSchema);
