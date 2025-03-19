@@ -34,8 +34,8 @@ const EmployeeSchema = new mongoose.Schema({
     required: true
   },
   stationId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Station'
+    type: String, // Changed from ObjectId to String
+    required: false // Made it optional
   },
   salary: {
     basic: {

@@ -51,8 +51,8 @@ const ExpenseSchema = new mongoose.Schema({
     enum: ['Cash', 'Bank Transfer', 'Credit Card', 'Check', 'Other']
   },
   stationId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Station'
+    type: String, // Changed from ObjectId to String
+    required: false // Made it optional
   },
   isRecurring: {
     type: Boolean,

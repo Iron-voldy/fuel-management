@@ -2,8 +2,7 @@ const mongoose = require('mongoose');
 
 const PettyCashBalanceSchema = new mongoose.Schema({
   stationId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Station',
+    type: String, // Changed from ObjectId to String
     required: true,
     unique: true
   },

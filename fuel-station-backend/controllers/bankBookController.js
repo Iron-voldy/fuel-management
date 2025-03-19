@@ -84,6 +84,7 @@ exports.getAccountById = async (req, res) => {
 };
 
 // Create a new bank account
+// Just the createAccount function for clarity
 exports.createAccount = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -95,11 +96,16 @@ exports.createAccount = async (req, res) => {
 
   try {
     // Check if account with same account number already exists
-    const existingAccount = await BankAccount.findOne({ accountNumber: req.body.accountNumber });
+    const existingAccount = await BankAccount.findOne({ 
+      accountNumber: req.body.accountNumber,
+      bankName: req.body.bankName,
+      user: req.user.id
+    });
+    
     if (existingAccount) {
       return res.status(400).json({
         success: false,
-        error: 'A bank account with this account number already exists'
+        error: 'A bank account with this account number already exists for this bank'
       });
     }
 
@@ -108,6 +114,7 @@ exports.createAccount = async (req, res) => {
       req.body.user = req.user.id;
     }
 
+    // Create a new account - the accountId will be automatically generated in the pre-save hook
     const account = new BankAccount(req.body);
     await account.save();
 
@@ -122,7 +129,7 @@ exports.createAccount = async (req, res) => {
       error: 'Server Error'
     });
   }
-};
+}
 
 // Update a bank account
 exports.updateAccount = async (req, res) => {

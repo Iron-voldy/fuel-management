@@ -12,8 +12,8 @@ const PettyCashSchema = new mongoose.Schema({
     required: true
   },
   stationId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Station'
+    type: String, // Changed from ObjectId to String
+    required: false // Made it optional
   },
   amount: {
     type: Number,
@@ -34,7 +34,8 @@ const PettyCashSchema = new mongoose.Schema({
       'Maintenance',
       'Transport',
       'Utilities',
-      'Miscellaneous'
+      'Miscellaneous',
+      'Replenishment' // Added this to the enum list
     ]
   },
   transactionType: {

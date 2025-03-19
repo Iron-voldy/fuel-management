@@ -6,6 +6,12 @@ const BankAccountSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  // Create a generated accountId field that will be unique
+  accountId: {
+    type: String,
+    unique: true,
+    // We'll generate this in pre-save hook
+  },
   accountName: {
     type: String,
     required: [true, 'Account name is required']
@@ -73,9 +79,17 @@ BankAccountSchema.index({ user: 1, accountNumber: 1, bankName: 1 }, { unique: tr
 // Index for faster queries
 BankAccountSchema.index({ user: 1, isActive: 1 });
 
-// Pre-save hook to update the updatedAt field
+// Pre-save hook to generate accountId and update updatedAt field
 BankAccountSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+  
+  // Generate accountId if it doesn't exist
+  if (!this.accountId) {
+    const prefix = 'ACCT';
+    const randomNum = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
+    this.accountId = `${prefix}${randomNum}`;
+  }
+  
   next();
 });
 
