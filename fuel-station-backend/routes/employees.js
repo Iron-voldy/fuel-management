@@ -53,7 +53,7 @@ router.put(
   employeeController.updateEmployee
 );
 
-// @route   DELETE api/employees/:id
+// @route   DELETE api/employees/:id 
 // @desc    Delete an employee
 // @access  Private
 router.delete('/:id', auth, employeeController.deleteEmployee);
