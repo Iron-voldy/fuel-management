@@ -29,6 +29,34 @@
     position: fixed;
     height: calc(100vh - 60px);
     top: 60px;
+    overflow-y: auto;
+  }
+  
+  .sidebar .nav-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .sidebar .nav-menu li {
+    margin-bottom: 10px;
+  }
+  
+  .sidebar .nav-menu a {
+    color: white;
+    text-decoration: none;
+    display: block;
+    padding: 10px;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+  }
+  
+  .sidebar .nav-menu a:hover {
+    background-color: #444;
+  }
+  
+  .sidebar .nav-menu a.active {
+    background-color: #3498db;
   }
   
   .content {
@@ -48,11 +76,45 @@
     position: sticky;
     top: 0;
     z-index: 1000;
+    justify-content: space-between;
   }
   
   .navbar .logo {
     font-size: 1.5rem;
     font-weight: bold;
+  }
+  
+  .navbar .logo a {
+    color: white;
+    text-decoration: none;
+  }
+  
+  .navbar .auth-links a {
+    color: white;
+    text-decoration: none;
+    margin-left: 15px;
+  }
+  
+  .navbar .user-actions {
+    display: flex;
+    align-items: center;
+  }
+  
+  .navbar .user-name {
+    margin-right: 15px;
+  }
+  
+  .navbar .logout-btn {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .navbar .logout-btn:hover {
+    background-color: #c0392b;
   }
   
   /* Footer */

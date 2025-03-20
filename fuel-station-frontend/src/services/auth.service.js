@@ -1,6 +1,6 @@
 // src/services/auth.service.js
 import api from './api';
-import jwt_decode from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 
 const AuthService = {
   async login(email, password) {
@@ -8,7 +8,7 @@ const AuthService = {
       const response = await api.post('/auth/login', { email, password });
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
-        const user = jwt_decode(response.data.token);
+        const user = jwtDecode(response.data.token);
         localStorage.setItem('user', JSON.stringify(user));
       }
       return response.data;
@@ -60,7 +60,7 @@ const AuthService = {
     if (!token) return false;
     
     try {
-      const decoded = jwt_decode(token);
+      const decoded = jwtDecode(token);
       const currentTime = Date.now() / 1000;
       return decoded.exp > currentTime;
     } catch (error) {
