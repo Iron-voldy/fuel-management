@@ -3,5 +3,7 @@ import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
 export const useAuth = () => {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  console.log('Auth context state:', context); // Add this log to debug
+  return context;
 };
