@@ -110,6 +110,52 @@ try {
   console.error('Error loading transaction routes:', err.message);
 }
 
+try {
+  const dashboardRoutes = require('./routes/dashboard');
+  app.use('/api/dashboard', dashboardRoutes);
+  console.log('Dashboard routes loaded successfully');
+} catch (err) {
+  console.error('Error loading dashboard routes:', err.message);
+}
+
+try {
+  const customerRoutes = require('./routes/customers');
+  app.use('/api/customers', customerRoutes);
+  console.log('Customer routes loaded successfully');
+} catch (err) {
+  console.error('Error loading customer routes:', err.message);
+}
+
+try {
+  const invoiceRoutes = require('./routes/invoices');
+  app.use('/api/invoices', invoiceRoutes);
+  console.log('Invoice routes loaded successfully');
+} catch (err) {
+  console.error('Error loading invoice routes:', err.message);
+}
+
+// Create required upload directories
+const uploadDirs = [
+  './uploads/attachments', 
+  './uploads/expenses', 
+  './uploads/petty-cash',
+  './uploads/customers'  // Add directory for customer documents
+];
+
+uploadDirs.forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
+try {
+  const inventoryRoutes = require('./routes/inventory');
+  app.use('/api/inventory', inventoryRoutes);
+  console.log('Inventory routes loaded successfully');
+} catch (err) {
+  console.error('Error loading inventory routes:', err.message);
+}
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

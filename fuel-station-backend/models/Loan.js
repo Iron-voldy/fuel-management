@@ -109,9 +109,8 @@ const LoanSchema = new mongoose.Schema({
   }
 });
 
-// Create index for faster queries
+// Create indexes for faster queries (removed duplicate loanId index)
 LoanSchema.index({ employeeId: 1, status: 1 });
-LoanSchema.index({ loanId: 1 });
 LoanSchema.index({ status: 1 });
 
 // Pre-save hook to update the updatedAt field

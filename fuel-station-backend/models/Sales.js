@@ -110,13 +110,12 @@ const SalesSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes for faster queries
+// Indexes for faster queries (removed duplicate saleId index)
 SalesSchema.index({ stationId: 1, date: -1 });
 SalesSchema.index({ fuelType: 1 });
 SalesSchema.index({ paymentMethod: 1 });
 SalesSchema.index({ customerId: 1 });
 SalesSchema.index({ employeeId: 1 });
-SalesSchema.index({ saleId: 1 }, { unique: true });
 
 // Pre-save hook to update the updatedAt field
 SalesSchema.pre('save', function(next) {
