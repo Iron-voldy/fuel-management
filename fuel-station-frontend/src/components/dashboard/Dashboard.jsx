@@ -7,39 +7,29 @@ import {
   Paper, 
   CircularProgress,
   Divider,
-  Card,
-  CardContent,
-  CardHeader,
   Button,
   useTheme,
   IconButton,
-  Tooltip,
   Tabs,
   Tab
 } from '@mui/material';
 import { 
   TrendingUp, 
-  TrendingDown, 
   Refresh, 
   LocalGasStation,
   MoreVert,
   ReceiptLong,
-  AttachMoney,
-  ShoppingCart,
-  Person,
-  ArrowUpward,
-  ArrowDownward,
-  CalendarToday
+  AttachMoney
 } from '@mui/icons-material';
-import { Line, Bar, Pie, Doughnut } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, registerables } from 'chart.js';
+import { useNavigate } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import SalesOverviewChart from './SalesOverviewChart';
 import TopSellingFuelsChart from './TopSellingFuelsChart';
 import ExpensesBreakdownChart from './ExpensesBreakdownChart';
 import PerformanceMetricsCard from './PerformanceMetricsCard';
 import StaffMetricsCard from './StaffMetricsCard';
-import CashPositionWidget from './CashPositionWidget';
 import InfoCard from './InfoCard';
 
 // Register ChartJS components
@@ -47,7 +37,8 @@ ChartJS.register(...registerables);
 
 const Dashboard = () => {
   const theme = useTheme();
-  const { api, user } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const { api, user, logout } = useContext(AuthContext);
   const [dashboardData, setDashboardData] = useState(null);
   const [profitLossData, setProfitLossData] = useState(null);
   const [cashFlowData, setCashFlowData] = useState(null);
@@ -57,6 +48,7 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [timeframe, setTimeframe] = useState('month');
   const [tabValue, setTabValue] = useState(0);
+  const [authError, setAuthError] = useState(false);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -67,6 +59,27 @@ const Dashboard = () => {
     fetchDashboardData(newTimeframe);
     fetchProfitLossData(newTimeframe);
     fetchCashFlowData(newTimeframe);
+  };
+
+  // Handle unauthorized errors consistently
+  const handleAuthError = (err) => {
+    console.error('Authentication error:', err);
+    setAuthError(true);
+    
+    // Clear any stale token data
+    localStorage.removeItem('token');
+    
+    // Log the user out if we have logout function
+    if (logout && typeof logout === 'function') {
+      logout();
+    }
+    
+    // Redirect to login page
+    navigate('/login', { 
+      state: { 
+        message: 'Your session has expired. Please log in again.' 
+      } 
+    });
   };
 
   const fetchDashboardData = async (period = 'month') => {
@@ -84,12 +97,18 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      setError(err.response?.data?.error || 'Failed to load dashboard data');
+      
+      // Check if error is due to authentication
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        handleAuthError(err);
+      } else {
+        setError(err.response?.data?.error || 'Failed to load dashboard data');
+      }
     } finally {
       setLoading(false);
     }
   };
-
+  
   const fetchProfitLossData = async (period = 'month') => {
     try {
       setLoadingPL(true);
@@ -102,11 +121,16 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error('Error fetching profit & loss data:', err);
+      
+      // Check if error is due to authentication
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        handleAuthError(err);
+      }
     } finally {
       setLoadingPL(false);
     }
   };
-
+  
   const fetchCashFlowData = async (period = 'month') => {
     try {
       setLoadingCF(true);
@@ -119,16 +143,54 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error('Error fetching cash flow data:', err);
+      
+      // Check if error is due to authentication
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        handleAuthError(err);
+      }
     } finally {
       setLoadingCF(false);
     }
   };
 
   useEffect(() => {
+    // Check if user is authenticated before making API calls
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      handleAuthError(new Error('No authentication token found'));
+      return;
+    }
+    
+    // Only fetch data if we have a token
     fetchDashboardData();
     fetchProfitLossData();
     fetchCashFlowData();
-  }, [api]);
+  }, []);
+
+  // If authentication error occurred, don't show any dashboard content
+  if (authError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Paper sx={{ p: 3, bgcolor: 'error.light', color: 'error.contrastText' }}>
+          <Typography variant="h6">
+            Authentication Error
+          </Typography>
+          <Typography variant="body1" sx={{ mt: 2 }}>
+            Your session has expired or you're not authorized to view this page.
+          </Typography>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            sx={{ mt: 2 }}
+            onClick={() => navigate('/login')}
+          >
+            Go to Login
+          </Button>
+        </Paper>
+      </Box>
+    );
+  }
 
   if (loading && !dashboardData) {
     return (
@@ -586,7 +648,7 @@ const Dashboard = () => {
       {tabValue === 2 && (
         <Grid container spacing={3}>
           <Grid item xs={12}>
-            <Paper 
+          <Paper 
               sx={{ 
                 p: 3, 
                 borderRadius: 2,

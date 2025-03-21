@@ -15,17 +15,29 @@ import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
-// Components - Dashboard
+// Components - Pages
 import Dashboard from './components/dashboard/Dashboard';
+import BankAccountsPage from './components/bank-book/BankAccountsPage';
+import SalesPage from './components/sales/SalesPage';
+import CustomersPage from './pages/CustomersPage';
 
 // Create a theme
 const theme = createTheme({
   palette: {
     primary: {
       main: '#1976d2',
+      lighter: '#e3f2fd'
     },
     secondary: {
       main: '#dc004e',
+    },
+    success: {
+      main: '#4caf50',
+      lighter: '#e8f5e9'
+    },
+    error: {
+      main: '#f44336',
+      lighter: '#ffebee'
     },
     background: {
       default: '#f5f5f5',
@@ -58,10 +70,10 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/bank-accounts" element={<div>Bank Accounts Page (Coming Soon)</div>} />
-                <Route path="/sales" element={<div>Sales Page (Coming Soon)</div>} />
+                <Route path="/bank-accounts" element={<BankAccountsPage />} />
+                <Route path="/sales"  element={<SalesPage />}  />
                 <Route path="/inventory" element={<div>Inventory Page (Coming Soon)</div>} />
-                <Route path="/customers" element={<div>Customers Page (Coming Soon)</div>} />
+                <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/expenses" element={<div>Expenses Page (Coming Soon)</div>} />
                 <Route path="/reports" element={<div>Reports Page (Coming Soon)</div>} />
               </Route>

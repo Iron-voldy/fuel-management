@@ -47,6 +47,14 @@ try {
 }
 
 try {
+  const stationRoutes = require('./routes/stationRoutes');
+  app.use('/api/stations', stationRoutes);
+  console.log('Station routes loaded successfully');
+} catch (err) {
+  console.error('Error loading station routes:', err.message);
+}
+
+try {
   const employeeRoutes = require('./routes/employees');
   app.use('/api/employees', employeeRoutes);
   console.log('Employee routes loaded successfully');

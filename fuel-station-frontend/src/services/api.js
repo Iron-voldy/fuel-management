@@ -2,45 +2,48 @@ import axios from 'axios';
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
-
-// Add request interceptor for authentication
-api.interceptors.request.use(
-  (config) => {
-    // Add token to every request if it exists in localStorage
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers['x-auth-token'] = token;
+    baseURL: 'http://localhost:5000/api',
+    headers: {
+      'Content-Type': 'application/json'
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Add response interceptor for error handling
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    // Handle 401 Unauthorized errors (token expired)
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
-      // Redirect to login if not already there
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+  });
+  
+  // Add request interceptor for authentication
+  api.interceptors.request.use(
+    (config) => {
+      // Add token to every request if it exists in localStorage
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers['x-auth-token'] = token;
       }
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
-  }
-);
-
+  );
+  
+  // Add response interceptor for error handling
+  api.interceptors.response.use(
+    (response) => {
+      return response;
+    },
+    (error) => {
+      // Handle 401 Unauthorized errors (token expired)
+      if (error.response && error.response.status === 401) {
+        console.log('Authentication error detected, redirecting to login');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // Redirect to login if not already there
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+      return Promise.reject(error);
+    }
+  );
+  
 // Auth API
 export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),

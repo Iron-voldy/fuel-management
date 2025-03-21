@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }) => {
 
   // Set up axios defaults
   const api = axios.create({
-    baseURL: 'http://localhost:5000/api',
+    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
     headers: {
       'Content-Type': 'application/json'
     }
@@ -27,8 +27,43 @@ export const AuthProvider = ({ children }) => {
     } else {
       delete api.defaults.headers.common['x-auth-token'];
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, api.defaults.headers.common]);
+
+  // Configure request interceptor to add token to every request
+  useEffect(() => {
+    const requestInterceptor = api.interceptors.request.use(
+      config => {
+        // Get fresh token from localStorage for each request
+        const token = localStorage.getItem('token');
+        if (token) {
+          config.headers['x-auth-token'] = token;
+        }
+        return config;
+      },
+      error => {
+        return Promise.reject(error);
+      }
+    );
+    
+    // Configure response interceptor to handle auth errors
+    const responseInterceptor = api.interceptors.response.use(
+      response => response,
+      error => {
+        // Handle authentication errors (401, 403)
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+          // Clear token and user data
+          logout();
+        }
+        return Promise.reject(error);
+      }
+    );
+    
+    // Clean up interceptors on unmount
+    return () => {
+      api.interceptors.request.eject(requestInterceptor);
+      api.interceptors.response.eject(responseInterceptor);
+    };
+  }, [api]);
 
   // Load user on mount or token change
   useEffect(() => {
@@ -71,8 +106,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     loadUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, api]);
 
   // Login user
   const login = async (email, password) => {
@@ -134,11 +168,30 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
+    setError(null);
   };
 
   // Clear errors
   const clearErrors = () => {
     setError(null);
+  };
+
+  // Check if token is valid
+  const checkTokenValidity = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        return false;
+      }
+      
+      // Verify token with backend
+      const res = await api.get('/auth/verify');
+      return res.data.valid === true;
+    } catch (err) {
+      console.error('Token validation error:', err);
+      return false;
+    }
   };
 
   return (
@@ -153,6 +206,7 @@ export const AuthProvider = ({ children }) => {
         register,
         logout,
         clearErrors,
+        checkTokenValidity,
         api
       }}
     >
