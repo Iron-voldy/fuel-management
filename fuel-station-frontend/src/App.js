@@ -20,6 +20,7 @@ import Dashboard from './components/dashboard/Dashboard';
 import BankAccountsPage from './components/bank-book/BankAccountsPage';
 import SalesPage from './components/sales/SalesPage';
 import CustomersPage from './pages/CustomersPage';
+import ReportPage from './pages/ReportsPage';
 
 // Create a theme
 const theme = createTheme({
@@ -75,7 +76,7 @@ function App() {
                 <Route path="/inventory" element={<div>Inventory Page (Coming Soon)</div>} />
                 <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/expenses" element={<div>Expenses Page (Coming Soon)</div>} />
-                <Route path="/reports" element={<div>Reports Page (Coming Soon)</div>} />
+                <Route path="/reports"   element={<ReportPage />}  />
               </Route>
             </Route>
             
