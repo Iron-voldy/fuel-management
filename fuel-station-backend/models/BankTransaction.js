@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-const BankTransactionSchema = new mongoose.Schema({
+const BankTransactionSchema = new Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: 'user'
   },
   transactionId: {
     type: String,
@@ -13,23 +13,17 @@ const BankTransactionSchema = new mongoose.Schema({
   },
   account: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'BankAccount',
+    ref: 'bankAccount',
     required: true
-  },
-  relatedAccount: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'BankAccount',
-    default: null
   },
   amount: {
     type: Number,
-    required: [true, 'Amount is required'],
-    min: [0.01, 'Amount must be greater than 0']
+    required: true
   },
   type: {
     type: String,
     enum: ['deposit', 'withdrawal'],
-    required: [true, 'Transaction type is required']
+    required: true
   },
   date: {
     type: Date,
@@ -37,36 +31,41 @@ const BankTransactionSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: [true, 'Description is required']
+    required: true
   },
   category: {
     type: String,
     default: 'Uncategorized'
   },
   reference: {
-    type: String,
-    default: ''
+    type: String
   },
   notes: {
-    type: String,
-    default: ''
-  },
-  isTransfer: {
-    type: Boolean,
-    default: false
+    type: String
   },
   isReconciled: {
     type: Boolean,
     default: false
   },
-  attachments: [{
-    name: String,
-    path: String,
-    uploadDate: {
-      type: Date,
-      default: Date.now
+  isTransfer: {
+    type: Boolean,
+    default: false
+  },
+  relatedAccount: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'bankAccount',
+    default: null
+  },
+  attachments: [
+    {
+      name: String,
+      path: String,
+      uploadDate: {
+        type: Date,
+        default: Date.now
+      }
     }
-  }],
+  ],
   createdAt: {
     type: Date,
     default: Date.now
@@ -75,53 +74,12 @@ const BankTransactionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
-}, {
-  timestamps: true
 });
 
-// Indexes for faster queries
-BankTransactionSchema.index({ account: 1, date: -1 });
-BankTransactionSchema.index({ user: 1, date: -1 });
-BankTransactionSchema.index({ user: 1, type: 1, date: -1 });
-BankTransactionSchema.index({ user: 1, category: 1, date: -1 });
-
-// Add text index for searching
-BankTransactionSchema.index({ 
-  description: 'text', 
-  reference: 'text', 
-  notes: 'text', 
-  category: 'text' 
-});
-
-// Pre-save hook to update the updatedAt field
+// Update the updatedAt field on save
 BankTransactionSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
 
-// Virtual for formatted amount
-BankTransactionSchema.virtual('formattedAmount').get(function() {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(this.amount);
-});
-
-// Static method to find recent transactions
-BankTransactionSchema.statics.findRecent = function(userId, accountId, limit = 10) {
-  const query = { user: userId };
-  if (accountId) query.account = accountId;
-  
-  return this.find(query)
-    .sort({ date: -1 })
-    .limit(limit)
-    .populate('account', 'accountName bankName');
-};
-
-// Method to add attachment
-BankTransactionSchema.methods.addAttachment = function(name, path) {
-  this.attachments.push({ name, path });
-  return this.save();
-};
-
-module.exports = mongoose.model('BankTransaction', BankTransactionSchema);
+module.exports = mongoose.model('bankTransaction', BankTransactionSchema);

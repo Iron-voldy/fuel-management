@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   DialogContent,
   DialogActions,
@@ -12,9 +12,11 @@ import {
   FormHelperText,
   Box,
   Typography,
-  Divider
+  Divider,
+  CircularProgress
 } from '@mui/material';
 import { AccountBalance as AccountIcon } from '@mui/icons-material';
+import useBankAccountValidation from '../../hooks/useBankAccountValidation';
 
 const BankAccountForm = ({ account, onSubmit, onCancel }) => {
   const initialFormState = {
@@ -29,85 +31,39 @@ const BankAccountForm = ({ account, onSubmit, onCancel }) => {
     notes: ''
   };
 
-  const [formData, setFormData] = useState(initialFormState);
-  const [errors, setErrors] = useState({});
+  // Initialize the validation hook
+  const {
+    formData,
+    errors,
+    isSubmitting,
+    handleChange,
+    handleBlur,
+    handleSubmit,
+    setFieldValue,
+    hasError,
+    getError
+  } = useBankAccountValidation(
+    initialFormState,
+    async (validatedData) => {
+      try {
+        await onSubmit(validatedData);
+      } catch (error) {
+        console.error('Error submitting bank account form:', error);
+        throw error;
+      }
+    }
+  );
 
   // Populate form with account data when editing
   useEffect(() => {
     if (account) {
-      setFormData({
-        accountName: account.accountName || '',
-        accountNumber: account.accountNumber || '',
-        bankName: account.bankName || '',
-        branchName: account.branchName || '',
-        routingNumber: account.routingNumber || '',
-        accountType: account.accountType || 'Checking',
-        openingBalance: account.openingBalance || 0,
-        isActive: account.isActive !== undefined ? account.isActive : true,
-        notes: account.notes || ''
+      Object.keys(initialFormState).forEach(key => {
+        if (account[key] !== undefined) {
+          setFieldValue(key, account[key]);
+        }
       });
-    } else {
-      setFormData(initialFormState);
     }
   }, [account]);
-
-  // Handle form input changes
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    
-    // Handle checkbox/switch inputs
-    const newValue = type === 'checkbox' ? checked : value;
-    
-    // Clear error for this field when changed
-    setErrors({
-      ...errors,
-      [name]: undefined
-    });
-    
-    setFormData({
-      ...formData,
-      [name]: newValue
-    });
-  };
-
-  // Validate form
-  const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formData.accountName.trim()) {
-      newErrors.accountName = 'Account name is required';
-    }
-    
-    if (!formData.accountNumber.trim()) {
-      newErrors.accountNumber = 'Account number is required';
-    }
-    
-    if (!formData.bankName.trim()) {
-      newErrors.bankName = 'Bank name is required';
-    }
-    
-    if (formData.openingBalance < 0) {
-      newErrors.openingBalance = 'Opening balance cannot be negative';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // Handle form submission
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (validateForm()) {
-      // Convert openingBalance to number
-      const submissionData = {
-        ...formData,
-        openingBalance: Number(formData.openingBalance)
-      };
-      
-      onSubmit(submissionData);
-    }
-  };
 
   // Account types options
   const accountTypes = [
@@ -131,8 +87,9 @@ const BankAccountForm = ({ account, onSubmit, onCancel }) => {
               name="accountName"
               value={formData.accountName}
               onChange={handleChange}
-              error={!!errors.accountName}
-              helperText={errors.accountName}
+              onBlur={handleBlur}
+              error={hasError('accountName')}
+              helperText={getError('accountName')}
               required
               variant="outlined"
               placeholder="e.g. Main Operating Account"
@@ -154,8 +111,9 @@ const BankAccountForm = ({ account, onSubmit, onCancel }) => {
               name="bankName"
               value={formData.bankName}
               onChange={handleChange}
-              error={!!errors.bankName}
-              helperText={errors.bankName}
+              onBlur={handleBlur}
+              error={hasError('bankName')}
+              helperText={getError('bankName')}
               required
               variant="outlined"
               placeholder="e.g. Bank of Ceylon"
@@ -170,6 +128,10 @@ const BankAccountForm = ({ account, onSubmit, onCancel }) => {
               name="branchName"
               value={formData.branchName}
               onChange={handleChange}
+              onBlur={handleBlur}
+              error={hasError('branchName')}
+              helperText={getError('branchName')}
+              required
               variant="outlined"
               placeholder="e.g. Main Branch"
             />
@@ -183,8 +145,9 @@ const BankAccountForm = ({ account, onSubmit, onCancel }) => {
               name="accountNumber"
               value={formData.accountNumber}
               onChange={handleChange}
-              error={!!errors.accountNumber}
-              helperText={errors.accountNumber}
+              onBlur={handleBlur}
+              error={hasError('accountNumber')}
+              helperText={getError('accountNumber')}
               required
               variant="outlined"
               placeholder="e.g. 1234567890"
@@ -199,6 +162,9 @@ const BankAccountForm = ({ account, onSubmit, onCancel }) => {
               name="routingNumber"
               value={formData.routingNumber}
               onChange={handleChange}
+              onBlur={handleBlur}
+              error={hasError('routingNumber')}
+              helperText={getError('routingNumber')}
               variant="outlined"
               placeholder="e.g. 987654321"
             />
@@ -213,7 +179,11 @@ const BankAccountForm = ({ account, onSubmit, onCancel }) => {
               name="accountType"
               value={formData.accountType}
               onChange={handleChange}
+              onBlur={handleBlur}
+              error={hasError('accountType')}
+              helperText={getError('accountType')}
               variant="outlined"
+              required
             >
               {accountTypes.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
@@ -232,9 +202,11 @@ const BankAccountForm = ({ account, onSubmit, onCancel }) => {
               type="number"
               value={formData.openingBalance}
               onChange={handleChange}
-              error={!!errors.openingBalance}
-              helperText={errors.openingBalance}
+              onBlur={handleBlur}
+              error={hasError('openingBalance')}
+              helperText={getError('openingBalance')}
               variant="outlined"
+              required
               InputProps={{
                 startAdornment: <InputAdornment position="start">LKR</InputAdornment>,
               }}
@@ -284,13 +256,20 @@ const BankAccountForm = ({ account, onSubmit, onCancel }) => {
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={onCancel} disabled={isSubmitting}>Cancel</Button>
         <Button 
           type="submit" 
           variant="contained" 
           color="primary"
+          disabled={isSubmitting}
         >
-          {account ? 'Update Account' : 'Create Account'}
+          {isSubmitting ? (
+            <CircularProgress size={24} />
+          ) : account ? (
+            'Update Account'
+          ) : (
+            'Create Account'
+          )}
         </Button>
       </DialogActions>
     </form>

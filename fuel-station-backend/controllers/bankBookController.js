@@ -331,94 +331,148 @@ exports.reconcileAccount = async (req, res) => {
 };
 
 // Transfer funds between accounts
+// @desc    Transfer funds between accounts
+// @route   POST /api/bank-book/transfer
+// @access  Private
 exports.transferFunds = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      errors: errors.array()
-    });
+    return res.status(400).json({ errors: errors.array() });
   }
 
+  const {
+    fromAccountId,
+    toAccountId,
+    amount,
+    description,
+    date,
+    category,
+    reference,
+    notes,
+    withdrawalTransactionId, // Accept these from frontend if provided
+    depositTransactionId
+  } = req.body;
+
+  // Start a MongoDB session for transaction
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { fromAccountId, toAccountId, amount, description, date } = req.body;
-    
-    // Validate accounts
-    const fromAccount = await BankAccount.findById(fromAccountId);
+    // Validate amount
+    if (amount <= 0) {
+      return res.status(400).json({ msg: 'Amount must be greater than zero' });
+    }
+
+    // Get the source account
+    const fromAccount = await BankAccount.findById(fromAccountId).session(session);
     if (!fromAccount) {
-      return res.status(404).json({
-        success: false,
-        error: 'Source account not found'
-      });
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ msg: 'Source account not found' });
     }
-    
-    const toAccount = await BankAccount.findById(toAccountId);
+
+    // Get the destination account
+    const toAccount = await BankAccount.findById(toAccountId).session(session);
     if (!toAccount) {
-      return res.status(404).json({
-        success: false,
-        error: 'Destination account not found'
-      });
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ msg: 'Destination account not found' });
     }
-    
+
+    // Check user owns both accounts if user is in request
+    if (req.user) {
+      if (fromAccount.user && fromAccount.user.toString() !== req.user.id) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(401).json({ msg: 'User not authorized for source account' });
+      }
+      if (toAccount.user && toAccount.user.toString() !== req.user.id) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(401).json({ msg: 'User not authorized for destination account' });
+      }
+    }
+
     // Check sufficient funds
     if (fromAccount.currentBalance < amount) {
-      return res.status(400).json({
-        success: false,
-        error: 'Insufficient funds in source account'
-      });
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ msg: 'Insufficient funds in source account' });
     }
+
+    // Generate transaction IDs if not provided
+    const finalWithdrawalTransactionId = withdrawalTransactionId || crypto.randomUUID();
+    const finalDepositTransactionId = depositTransactionId || crypto.randomUUID();
     
+    const currentDate = date ? new Date(date) : new Date();
+
     // Create withdrawal transaction
     const withdrawalTransaction = new BankTransaction({
-      user: req.user.id,
+      transactionId: finalWithdrawalTransactionId,
       account: fromAccountId,
-      relatedAccount: toAccountId,
       amount,
       type: 'withdrawal',
-      date: date || new Date(),
-      description: description || 'Fund transfer',
-      category: 'Transfer',
-      isTransfer: true
+      date: currentDate,
+      description: description || `Transfer to ${toAccount.accountName}`,
+      category: category || 'Transfer',
+      reference: reference || '',
+      notes: notes || '',
+      relatedAccount: toAccountId,
+      isTransfer: true,
+      user: req.user ? req.user.id : null
     });
-    
+
     // Create deposit transaction
     const depositTransaction = new BankTransaction({
-      user: req.user.id,
+      transactionId: finalDepositTransactionId,
       account: toAccountId,
-      relatedAccount: fromAccountId,
       amount,
       type: 'deposit',
-      date: date || new Date(),
-      description: description || 'Fund transfer',
-      category: 'Transfer',
-      isTransfer: true
+      date: currentDate,
+      description: description || `Transfer from ${fromAccount.accountName}`,
+      category: category || 'Transfer',
+      reference: reference || '',
+      notes: notes || '',
+      relatedAccount: fromAccountId,
+      isTransfer: true,
+      user: req.user ? req.user.id : null
     });
-    
+
     // Update account balances
     fromAccount.currentBalance -= amount;
     toAccount.currentBalance += amount;
-    
-    // Save all changes
-    await withdrawalTransaction.save();
-    await depositTransaction.save();
-    await fromAccount.save();
-    await toAccount.save();
-    
+
+    // Save transactions and updated accounts
+    await withdrawalTransaction.save({ session });
+    await depositTransaction.save({ session });
+    await fromAccount.save({ session });
+    await toAccount.save({ session });
+
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
+
     res.json({
-      success: true,
-      data: {
-        fromAccount,
-        toAccount,
-        amount,
-        withdrawalTransaction,
-        depositTransaction
-      }
+      msg: 'Transfer completed successfully',
+      fromAccount: {
+        id: fromAccount._id,
+        name: fromAccount.accountName,
+        newBalance: fromAccount.currentBalance
+      },
+      toAccount: {
+        id: toAccount._id,
+        name: toAccount.accountName,
+        newBalance: toAccount.currentBalance
+      },
+      amount,
+      withdrawalTransaction: withdrawalTransaction._id,
+      depositTransaction: depositTransaction._id
     });
   } catch (err) {
-    console.error('Error transferring funds:', err.message);
-    res.status(500).json({
-      success: false,
-      error: 'Server Error'
-    });
+    // Abort the transaction on error
+    await session.abortTransaction();
+    session.endSession();
+    console.error('Error transferring funds:', err);
+    res.status(500).send('Server Error');
   }
 };

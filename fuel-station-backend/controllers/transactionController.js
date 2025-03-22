@@ -108,6 +108,7 @@ exports.getTransaction = async (req, res) => {
   }
 };
 
+
 // @desc    Create a new transaction
 // @route   POST /api/bank-book/transactions
 // @access  Private
@@ -158,12 +159,12 @@ exports.createTransaction = async (req, res) => {
       }
     }
 
-    // Generate a unique transaction ID
-    const transactionId = await validators.generateTransactionId();
+    // Generate a unique transaction ID (directly in the controller)
+    const transactionId = crypto.randomUUID();
 
     // Create transaction
     const newTransaction = new BankTransaction({
-      transactionId, // Add the generated transaction ID
+      transactionId,
       account: accountId,
       amount,
       type,

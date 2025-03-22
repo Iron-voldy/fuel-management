@@ -153,39 +153,59 @@ const BankAccountsPage = () => {
   };
 
   // Handle form submit
-  const handleFormSubmit = async (formData) => {
-    try {
-      if (editingAccount) {
-        // Update existing account
-        await api.put(`/bank-book/accounts/${editingAccount._id}`, formData);
-        setNotification({
-          open: true,
-          message: 'Bank account updated successfully',
-          severity: 'success'
-        });
-      } else {
-        // Create new account
-        await api.post('/bank-book/accounts', formData);
-        setNotification({
-          open: true,
-          message: 'Bank account created successfully',
-          severity: 'success'
-        });
-      }
-      
-      // Refresh data
-      fetchAccounts();
-      fetchDashboardData();
-      handleCloseForm();
-    } catch (err) {
-      console.error('Error saving bank account:', err);
+ // This is a partial snippet showing how to modify the BankAccountsPage.jsx file
+// to integrate the new validation approach
+
+// In the handleFormSubmit method of BankAccountsPage.jsx, update it to handle
+// submission directly without additional validation, as validation is now handled by the form itself
+
+const handleFormSubmit = async (formData) => {
+  try {
+    if (editingAccount) {
+      // Update existing account
+      await api.put(`/bank-book/accounts/${editingAccount._id}`, formData);
       setNotification({
         open: true,
-        message: err.response?.data?.error || 'Failed to save bank account',
-        severity: 'error'
+        message: 'Bank account updated successfully',
+        severity: 'success'
+      });
+    } else {
+      // Create new account
+      await api.post('/bank-book/accounts', formData);
+      setNotification({
+        open: true,
+        message: 'Bank account created successfully',
+        severity: 'success'
       });
     }
-  };
+    
+    // Refresh data
+    fetchAccounts();
+    fetchDashboardData();
+    handleCloseForm();
+  } catch (err) {
+    console.error('Error saving bank account:', err);
+    setNotification({
+      open: true,
+      message: err.response?.data?.error || 'Failed to save bank account',
+      severity: 'error'
+    });
+  }
+};
+
+// The Dialog component in BankAccountsPage.jsx remains largely the same
+// Here is the relevant section:
+
+{/* Bank Account Form Dialog */}
+<Dialog open={openForm} onClose={handleCloseForm} maxWidth="sm" fullWidth>
+  <DialogTitle>{editingAccount ? 'Edit Bank Account' : 'Add New Bank Account'}</DialogTitle>
+  <BankAccountForm 
+    account={editingAccount}
+    onSubmit={handleFormSubmit}
+    onCancel={handleCloseForm}
+  />
+</Dialog>
+
 
   // Handle transfer form open
   const handleOpenTransferForm = () => {
