@@ -203,4 +203,4 @@ const AccountSummary = ({ accountData, hideBalances, formatCurrency, onRefresh }
   );
 };
 
-export default AccountSummary;
+export default AccountSummary; 

@@ -573,54 +573,161 @@ exports.generateFinancialReport = async (req, res) => {
     }
 
     // Handle different output formats
-    switch (format) {
-      case 'csv':
-        // Generate CSV based on report type
-        let csv = '';
-        
-        // Generate CSV content based on report type (simplified example)
-        if (reportType === 'expense-analysis') {
-          const fields = ['category', 'amount', 'percentage'];
-          csv = [
-            fields.join(','),
-            ...report.expensesByCategory.map(expense => 
-              `${expense.category},${expense.amount},${expense.percentage}`
-            )
-          ].join('\n');
-        } else {
-          // Default CSV format for other report types
-          csv = `Report Type,${report.reportType}\nPeriod,${startDate} to ${endDate}\n\n`;
-          
-          // Add relevant data based on report type
-          if (report.summary) {
-            csv += 'Summary\n';
-            Object.entries(report.summary).forEach(([key, value]) => {
-              csv += `${key},${value}\n`;
-            });
+    // This is the code to be inserted into the reportController.js file
+// to enable PDF generation functionality
+
+const { generatePDFReport } = require('../utils/pdfGenerator');
+const ExcelJS = require('exceljs');
+
+// For the generateSalesReport method
+// Replace the existing switch (format) case with this:
+
+switch (format) {
+  case 'csv':
+    // Generate CSV
+    const fields = ['saleId', 'date', 'fuelType', 'quantity', 'unitPrice', 'totalAmount', 'paymentMethod', 'customerId', 'stationId'];
+    const csv = [
+      fields.join(','),
+      ...sales.map(sale => {
+        return fields.map(field => {
+          if (field === 'date') {
+            return moment(sale[field]).format('YYYY-MM-DD HH:mm:ss');
           }
-        }
+          if (field === 'customerId' && sale.customerId) {
+            return typeof sale.customerId === 'object' ? sale.customerId.name : sale.customerId;
+          }
+          return sale[field];
+        }).join(',');
+      })
+    ].join('\n');
 
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', `attachment; filename="${reportType}-${startDate}-to-${endDate}.csv"`);
-        return res.send(csv);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="sales-report-${startDate}-to-${endDate}.csv"`);
+    return res.send(csv);
 
-      case 'pdf':
-      case 'xlsx':
-        // Return data for PDF/Excel generation
-        return res.json({
-          success: true,
-          data: reportData,
-          message: `${format.toUpperCase()} report data ready for generation`
-        });
-
-      case 'json':
-      default:
-        // Return JSON
-        return res.json({
-          success: true,
-          data: report
-        });
+  case 'pdf':
+    // Generate PDF using the utility
+    try {
+      reportData.generatedOn = new Date();
+      reportData.generatedBy = req.user ? req.user.name : 'System';
+      
+      const pdfBuffer = await generatePDFReport(reportData);
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="sales-report-${startDate}-to-${endDate}.pdf"`);
+      return res.send(pdfBuffer);
+    } catch (pdfError) {
+      console.error('Error generating PDF:', pdfError);
+      return res.status(500).json({
+        success: false,
+        error: 'Error generating PDF report'
+      });
     }
+
+  case 'xlsx':
+    // Generate Excel file
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Fuel Station Management System';
+      workbook.created = new Date();
+      
+      // Create a worksheet
+      const worksheet = workbook.addWorksheet('Sales Report');
+      
+      // Add title
+      worksheet.mergeCells('A1:H1');
+      worksheet.getCell('A1').value = reportData.reportType;
+      worksheet.getCell('A1').font = { size: 16, bold: true };
+      worksheet.getCell('A1').alignment = { horizontal: 'center' };
+      
+      // Add period
+      worksheet.mergeCells('A2:H2');
+      worksheet.getCell('A2').value = `Period: ${moment(startDate).format('MMM DD, YYYY')} to ${moment(endDate).format('MMM DD, YYYY')}`;
+      worksheet.getCell('A2').font = { size: 12 };
+      worksheet.getCell('A2').alignment = { horizontal: 'center' };
+      
+      // Add summary section
+      worksheet.addRow([]);
+      worksheet.addRow(['Summary']);
+      worksheet.getRow(4).font = { bold: true };
+      
+      if (reportData.summary) {
+        Object.entries(reportData.summary).forEach(([key, value], index) => {
+          const formattedKey = key
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase());
+          
+          worksheet.addRow([formattedKey, value]);
+        });
+      }
+      
+      // Add sales data if available
+      if (sales && sales.length > 0) {
+        worksheet.addRow([]);
+        worksheet.addRow(['Transactions']);
+        worksheet.getRow(worksheet.rowCount).font = { bold: true };
+        
+        // Add headers
+        const headers = ['Sale ID', 'Date', 'Fuel Type', 'Quantity', 'Unit Price', 'Total Amount', 'Payment Method', 'Customer'];
+        worksheet.addRow(headers);
+        worksheet.getRow(worksheet.rowCount).font = { bold: true };
+        
+        // Add data rows
+        sales.forEach(sale => {
+          worksheet.addRow([
+            sale.saleId,
+            moment(sale.date).format('YYYY-MM-DD'),
+            sale.fuelType,
+            sale.quantity,
+            sale.unitPrice,
+            sale.totalAmount,
+            sale.paymentMethod,
+            sale.customerId ? (typeof sale.customerId === 'object' ? sale.customerId.name : sale.customerId) : ''
+          ]);
+        });
+        
+        // Format the cells
+        worksheet.columns.forEach(column => {
+          let maxLength = 0;
+          column.eachCell({ includeEmpty: true }, cell => {
+            const columnLength = cell.value ? cell.value.toString().length : 10;
+            if (columnLength > maxLength) {
+              maxLength = columnLength;
+            }
+          });
+          column.width = maxLength < 10 ? 10 : maxLength;
+        });
+      }
+      
+      // Generate Excel file
+      const buffer = await workbook.xlsx.writeBuffer();
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="sales-report-${startDate}-to-${endDate}.xlsx"`);
+      return res.send(buffer);
+    } catch (excelError) {
+      console.error('Error generating Excel file:', excelError);
+      return res.status(500).json({
+        success: false,
+        error: 'Error generating Excel report'
+      });
+    }
+
+  case 'json':
+  default:
+    // Return JSON
+    reportData.generatedOn = new Date();
+    reportData.generatedBy = req.user ? req.user.name : 'System';
+    
+    return res.json({
+      success: true,
+      data: reportData
+    });
+}
+
+// Similar changes should be made to the other report generation functions (generateFinancialReport, generateInventoryReport, etc.)
+// to use the PDF generator for PDF format and Excel.js for XLSX format.
+
   } catch (err) {
     console.error(`Error generating ${req.query.reportType || 'financial'} report:`, err.message);
     res.status(500).json({
@@ -1040,45 +1147,160 @@ exports.generateInventoryReport = async (req, res) => {
     reportData.period = { startDate, endDate };
 
     // Return report in requested format
-    switch (format) {
-      case 'csv':
-        // Generate CSV based on report type
-        let csv = `Report Type,${reportData.reportType}\nPeriod,${startDate} to ${endDate}\n\n`;
+ // This is the code to be inserted into the reportController.js file
+// to enable PDF generation functionality
 
-        // Add CSV data based on report type
-        if (reportType === 'status' || reportType === 'valuation') {
-          csv += 'Fuel Type,Tank ID,Current Volume,Tank Capacity,Usage %,Selling Price,Cost Price,Inventory Value\n';
-          reportData.items.forEach(item => {
-            csv += `${item.fuelType},${item.tankId},${item.currentVolume},${item.tankCapacity},${item.usagePercentage},${item.sellingPrice},${item.costPrice},${item.inventoryValue}\n`;
-          });
-        } else if (reportType === 'movement') {
-          csv += 'Date,Fuel Type,Tank ID,Transaction Type,Volume,Reference\n';
-          reportData.movements.forEach(movement => {
-            csv += `${movement.date},${movement.fuelType},${movement.tankId},${movement.type},${movement.volume},${movement.reference}\n`;
-          });
-        }
+const { generatePDFReport } = require('../utils/pdfGenerator');
+const ExcelJS = require('exceljs');
 
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', `attachment; filename="inventory-${reportType}-${startDate}-to-${endDate}.csv"`);
-        return res.send(csv);
+// For the generateSalesReport method
+// Replace the existing switch (format) case with this:
 
-      case 'pdf':
-      case 'xlsx':
-        // Return data for PDF/Excel generation
-        return res.json({
-          success: true,
-          data: reportData,
-          message: `${format.toUpperCase()} report data ready for generation`
-        });
+switch (format) {
+  case 'csv':
+    // Generate CSV
+    const fields = ['saleId', 'date', 'fuelType', 'quantity', 'unitPrice', 'totalAmount', 'paymentMethod', 'customerId', 'stationId'];
+    const csv = [
+      fields.join(','),
+      ...sales.map(sale => {
+        return fields.map(field => {
+          if (field === 'date') {
+            return moment(sale[field]).format('YYYY-MM-DD HH:mm:ss');
+          }
+          if (field === 'customerId' && sale.customerId) {
+            return typeof sale.customerId === 'object' ? sale.customerId.name : sale.customerId;
+          }
+          return sale[field];
+        }).join(',');
+      })
+    ].join('\n');
 
-      case 'json':
-      default:
-        // Return JSON
-        return res.json({
-          success: true,
-          data: reportData
-        });
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="sales-report-${startDate}-to-${endDate}.csv"`);
+    return res.send(csv);
+
+  case 'pdf':
+    // Generate PDF using the utility
+    try {
+      reportData.generatedOn = new Date();
+      reportData.generatedBy = req.user ? req.user.name : 'System';
+      
+      const pdfBuffer = await generatePDFReport(reportData);
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="sales-report-${startDate}-to-${endDate}.pdf"`);
+      return res.send(pdfBuffer);
+    } catch (pdfError) {
+      console.error('Error generating PDF:', pdfError);
+      return res.status(500).json({
+        success: false,
+        error: 'Error generating PDF report'
+      });
     }
+
+  case 'xlsx':
+    // Generate Excel file
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Fuel Station Management System';
+      workbook.created = new Date();
+      
+      // Create a worksheet
+      const worksheet = workbook.addWorksheet('Sales Report');
+      
+      // Add title
+      worksheet.mergeCells('A1:H1');
+      worksheet.getCell('A1').value = reportData.reportType;
+      worksheet.getCell('A1').font = { size: 16, bold: true };
+      worksheet.getCell('A1').alignment = { horizontal: 'center' };
+      
+      // Add period
+      worksheet.mergeCells('A2:H2');
+      worksheet.getCell('A2').value = `Period: ${moment(startDate).format('MMM DD, YYYY')} to ${moment(endDate).format('MMM DD, YYYY')}`;
+      worksheet.getCell('A2').font = { size: 12 };
+      worksheet.getCell('A2').alignment = { horizontal: 'center' };
+      
+      // Add summary section
+      worksheet.addRow([]);
+      worksheet.addRow(['Summary']);
+      worksheet.getRow(4).font = { bold: true };
+      
+      if (reportData.summary) {
+        Object.entries(reportData.summary).forEach(([key, value], index) => {
+          const formattedKey = key
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase());
+          
+          worksheet.addRow([formattedKey, value]);
+        });
+      }
+      
+      // Add sales data if available
+      if (sales && sales.length > 0) {
+        worksheet.addRow([]);
+        worksheet.addRow(['Transactions']);
+        worksheet.getRow(worksheet.rowCount).font = { bold: true };
+        
+        // Add headers
+        const headers = ['Sale ID', 'Date', 'Fuel Type', 'Quantity', 'Unit Price', 'Total Amount', 'Payment Method', 'Customer'];
+        worksheet.addRow(headers);
+        worksheet.getRow(worksheet.rowCount).font = { bold: true };
+        
+        // Add data rows
+        sales.forEach(sale => {
+          worksheet.addRow([
+            sale.saleId,
+            moment(sale.date).format('YYYY-MM-DD'),
+            sale.fuelType,
+            sale.quantity,
+            sale.unitPrice,
+            sale.totalAmount,
+            sale.paymentMethod,
+            sale.customerId ? (typeof sale.customerId === 'object' ? sale.customerId.name : sale.customerId) : ''
+          ]);
+        });
+        
+        // Format the cells
+        worksheet.columns.forEach(column => {
+          let maxLength = 0;
+          column.eachCell({ includeEmpty: true }, cell => {
+            const columnLength = cell.value ? cell.value.toString().length : 10;
+            if (columnLength > maxLength) {
+              maxLength = columnLength;
+            }
+          });
+          column.width = maxLength < 10 ? 10 : maxLength;
+        });
+      }
+      
+      // Generate Excel file
+      const buffer = await workbook.xlsx.writeBuffer();
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="sales-report-${startDate}-to-${endDate}.xlsx"`);
+      return res.send(buffer);
+    } catch (excelError) {
+      console.error('Error generating Excel file:', excelError);
+      return res.status(500).json({
+        success: false,
+        error: 'Error generating Excel report'
+      });
+    }
+
+  case 'json':
+  default:
+    // Return JSON
+    reportData.generatedOn = new Date();
+    reportData.generatedBy = req.user ? req.user.name : 'System';
+    
+    return res.json({
+      success: true,
+      data: reportData
+    });
+}
+
+// Similar changes should be made to the other report generation functions (generateFinancialReport, generateInventoryReport, etc.)
+// to use the PDF generator for PDF format and Excel.js for XLSX format.   
   } catch (err) {
     console.error('Error generating inventory report:', err.message);
     res.status(500).json({
@@ -1446,11 +1668,20 @@ async function generateInventoryValuationReport(inventoryItems, includeDetails) 
   };
 }
 
+// Fix for the generateCustomerReport function in controllers/reportController.js
+
+// The issue is that reportData is used but not defined in the function
+// Here's the corrected version of the function:
+
 /**
  * @desc    Generate customer report
  * @route   GET /api/reports/customers
  * @access  Private
  */
+
+const { generatePDFReport } = require('../utils/pdfGenerator');
+const ExcelJS = require('exceljs');
+
 exports.generateCustomerReport = async (req, res) => {
   try {
     const {
@@ -1466,6 +1697,7 @@ exports.generateCustomerReport = async (req, res) => {
     let report;
     
     switch (reportType) {
+      case 'list':
       case 'customer-list':
         report = await generateCustomerListReport(includeDetails);
         break;
@@ -1502,7 +1734,7 @@ exports.generateCustomerReport = async (req, res) => {
         let csv = `Report Type,${report.reportType}\nPeriod,${startDate} to ${endDate}\n\n`;
         
         // Add CSV data based on report type
-        if (reportType === 'customer-list') {
+        if (reportType === 'customer-list' || reportType === 'list') {
           csv += 'Customer ID,Name,Email,Phone,Credit Limit,Status\n';
           report.customers.forEach(customer => {
             csv += `${customer.customerId},${customer.name},${customer.email},${customer.phone},${customer.creditLimit || 0},${customer.status}\n`;
@@ -1519,13 +1751,131 @@ exports.generateCustomerReport = async (req, res) => {
         return res.send(csv);
 
       case 'pdf':
+        try {
+          // Generate PDF using the utility
+          const pdfBuffer = await generatePDFReport(report);
+          
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename="customer-${reportType}-${startDate}-to-${endDate}.pdf"`);
+          return res.send(pdfBuffer);
+        } catch (pdfError) {
+          console.error('Error generating PDF:', pdfError);
+          return res.status(500).json({
+            success: false,
+            error: 'Error generating PDF report'
+          });
+        }
+
       case 'xlsx':
-        // Return data for PDF/Excel generation
-        return res.json({
-          success: true,
-          data: reportData,
-          message: `${format.toUpperCase()} report data ready for generation`
-        });
+        try {
+          // Generate Excel file
+          const workbook = new ExcelJS.Workbook();
+          workbook.creator = 'Fuel Station Management System';
+          workbook.created = new Date();
+          
+          // Create a worksheet
+          const worksheet = workbook.addWorksheet('Customer Report');
+          
+          // Add title
+          worksheet.mergeCells('A1:H1');
+          worksheet.getCell('A1').value = report.reportType;
+          worksheet.getCell('A1').font = { size: 16, bold: true };
+          worksheet.getCell('A1').alignment = { horizontal: 'center' };
+          
+          // Add period
+          worksheet.mergeCells('A2:H2');
+          worksheet.getCell('A2').value = `Period: ${moment(startDate).format('MMM DD, YYYY')} to ${moment(endDate).format('MMM DD, YYYY')}`;
+          worksheet.getCell('A2').font = { size: 12 };
+          worksheet.getCell('A2').alignment = { horizontal: 'center' };
+          
+          // Add summary section
+          worksheet.addRow([]);
+          worksheet.addRow(['Summary']);
+          worksheet.getRow(4).font = { bold: true };
+          
+          if (report.summary) {
+            Object.entries(report.summary).forEach(([key, value]) => {
+              const formattedKey = key
+                .replace(/([A-Z])/g, ' $1')
+                .replace(/^./, str => str.toUpperCase());
+              
+              worksheet.addRow([formattedKey, value]);
+            });
+          }
+          
+          // Add specific data based on report type
+          if (reportType === 'customer-list' || reportType === 'list') {
+            // Add customer list data
+            worksheet.addRow([]);
+            worksheet.addRow(['Customer List']);
+            worksheet.getRow(worksheet.rowCount).font = { bold: true };
+            
+            const headers = ['Customer ID', 'Name', 'Email', 'Phone', 'Credit Limit', 'Status'];
+            worksheet.addRow(headers);
+            worksheet.getRow(worksheet.rowCount).font = { bold: true };
+            
+            if (report.customers && report.customers.length > 0) {
+              report.customers.forEach(customer => {
+                worksheet.addRow([
+                  customer.customerId,
+                  customer.name,
+                  customer.email,
+                  customer.phone,
+                  customer.creditLimit || 0,
+                  customer.status
+                ]);
+              });
+            }
+          } else if (reportType === 'outstanding-invoices') {
+            // Add invoice data
+            worksheet.addRow([]);
+            worksheet.addRow(['Outstanding Invoices']);
+            worksheet.getRow(worksheet.rowCount).font = { bold: true };
+            
+            const headers = ['Invoice #', 'Customer', 'Issue Date', 'Due Date', 'Total Amount', 'Amount Due', 'Days Overdue'];
+            worksheet.addRow(headers);
+            worksheet.getRow(worksheet.rowCount).font = { bold: true };
+            
+            if (report.invoices && report.invoices.length > 0) {
+              report.invoices.forEach(invoice => {
+                worksheet.addRow([
+                  invoice.invoiceNumber,
+                  invoice.customer,
+                  moment(invoice.issueDate).format('YYYY-MM-DD'),
+                  moment(invoice.dueDate).format('YYYY-MM-DD'),
+                  invoice.totalAmount,
+                  invoice.amountDue,
+                  invoice.daysOverdue
+                ]);
+              });
+            }
+          }
+          
+          // Format the cells
+          worksheet.columns.forEach(column => {
+            let maxLength = 0;
+            column.eachCell({ includeEmpty: true }, cell => {
+              const columnLength = cell.value ? cell.value.toString().length : 10;
+              if (columnLength > maxLength) {
+                maxLength = columnLength;
+              }
+            });
+            column.width = maxLength < 10 ? 10 : maxLength;
+          });
+          
+          // Generate Excel file
+          const buffer = await workbook.xlsx.writeBuffer();
+          
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          res.setHeader('Content-Disposition', `attachment; filename="customer-${reportType}-${startDate}-to-${endDate}.xlsx"`);
+          return res.send(buffer);
+        } catch (excelError) {
+          console.error('Error generating Excel file:', excelError);
+          return res.status(500).json({
+            success: false,
+            error: 'Error generating Excel report'
+          });
+        }
 
       case 'json':
       default:
@@ -1929,45 +2279,161 @@ exports.generateBankingReport = async (req, res) => {
     report.period = { startDate, endDate };
 
     // Return report in requested format
-    switch (format) {
-      case 'csv':
-        // Generate CSV based on report type
-        let csv = `Report Type,${report.reportType}\nPeriod,${startDate} to ${endDate}\n\n`;
-        
-        // Add CSV data based on report type
-        if (reportType === 'bank-accounts-summary') {
-          csv += 'Account ID,Bank Name,Account Number,Account Type,Current Balance,Available Credit\n';
-          report.accounts.forEach(account => {
-            csv += `${account.accountId},${account.bankName},${account.accountNumber},${account.accountType},${account.currentBalance},${account.availableCredit || 0}\n`;
-          });
-        } else if (reportType === 'bank-transactions') {
-          csv += 'Transaction ID,Account,Date,Type,Description,Amount,Balance\n';
-          report.transactions.forEach(tx => {
-            csv += `${tx.transactionId},${tx.accountName},${moment(tx.date).format('YYYY-MM-DD')},${tx.type},${tx.description},${tx.amount},${tx.balanceAfterTransaction}\n`;
-          });
-        }
+   // This is the code to be inserted into the reportController.js file
+// to enable PDF generation functionality
 
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', `attachment; filename="banking-${reportType}-${startDate}-to-${endDate}.csv"`);
-        return res.send(csv);
+const { generatePDFReport } = require('../utils/pdfGenerator');
+const ExcelJS = require('exceljs');
 
-      case 'pdf':
-      case 'xlsx':
-        // Return data for PDF/Excel generation
-        return res.json({
-          success: true,
-          data: reportData,
-          message: `${format.toUpperCase()} report data ready for generation`
-        });
+// For the generateSalesReport method
+// Replace the existing switch (format) case with this:
 
-      case 'json':
-      default:
-        // Return JSON
-        return res.json({
-          success: true,
-          data: report
-        });
+switch (format) {
+  case 'csv':
+    // Generate CSV
+    const fields = ['saleId', 'date', 'fuelType', 'quantity', 'unitPrice', 'totalAmount', 'paymentMethod', 'customerId', 'stationId'];
+    const csv = [
+      fields.join(','),
+      ...sales.map(sale => {
+        return fields.map(field => {
+          if (field === 'date') {
+            return moment(sale[field]).format('YYYY-MM-DD HH:mm:ss');
+          }
+          if (field === 'customerId' && sale.customerId) {
+            return typeof sale.customerId === 'object' ? sale.customerId.name : sale.customerId;
+          }
+          return sale[field];
+        }).join(',');
+      })
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="sales-report-${startDate}-to-${endDate}.csv"`);
+    return res.send(csv);
+
+  case 'pdf':
+    // Generate PDF using the utility
+    try {
+      reportData.generatedOn = new Date();
+      reportData.generatedBy = req.user ? req.user.name : 'System';
+      
+      const pdfBuffer = await generatePDFReport(reportData);
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="sales-report-${startDate}-to-${endDate}.pdf"`);
+      return res.send(pdfBuffer);
+    } catch (pdfError) {
+      console.error('Error generating PDF:', pdfError);
+      return res.status(500).json({
+        success: false,
+        error: 'Error generating PDF report'
+      });
     }
+
+  case 'xlsx':
+    // Generate Excel file
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Fuel Station Management System';
+      workbook.created = new Date();
+      
+      // Create a worksheet
+      const worksheet = workbook.addWorksheet('Sales Report');
+      
+      // Add title
+      worksheet.mergeCells('A1:H1');
+      worksheet.getCell('A1').value = reportData.reportType;
+      worksheet.getCell('A1').font = { size: 16, bold: true };
+      worksheet.getCell('A1').alignment = { horizontal: 'center' };
+      
+      // Add period
+      worksheet.mergeCells('A2:H2');
+      worksheet.getCell('A2').value = `Period: ${moment(startDate).format('MMM DD, YYYY')} to ${moment(endDate).format('MMM DD, YYYY')}`;
+      worksheet.getCell('A2').font = { size: 12 };
+      worksheet.getCell('A2').alignment = { horizontal: 'center' };
+      
+      // Add summary section
+      worksheet.addRow([]);
+      worksheet.addRow(['Summary']);
+      worksheet.getRow(4).font = { bold: true };
+      
+      if (reportData.summary) {
+        Object.entries(reportData.summary).forEach(([key, value], index) => {
+          const formattedKey = key
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase());
+          
+          worksheet.addRow([formattedKey, value]);
+        });
+      }
+      
+      // Add sales data if available
+      if (sales && sales.length > 0) {
+        worksheet.addRow([]);
+        worksheet.addRow(['Transactions']);
+        worksheet.getRow(worksheet.rowCount).font = { bold: true };
+        
+        // Add headers
+        const headers = ['Sale ID', 'Date', 'Fuel Type', 'Quantity', 'Unit Price', 'Total Amount', 'Payment Method', 'Customer'];
+        worksheet.addRow(headers);
+        worksheet.getRow(worksheet.rowCount).font = { bold: true };
+        
+        // Add data rows
+        sales.forEach(sale => {
+          worksheet.addRow([
+            sale.saleId,
+            moment(sale.date).format('YYYY-MM-DD'),
+            sale.fuelType,
+            sale.quantity,
+            sale.unitPrice,
+            sale.totalAmount,
+            sale.paymentMethod,
+            sale.customerId ? (typeof sale.customerId === 'object' ? sale.customerId.name : sale.customerId) : ''
+          ]);
+        });
+        
+        // Format the cells
+        worksheet.columns.forEach(column => {
+          let maxLength = 0;
+          column.eachCell({ includeEmpty: true }, cell => {
+            const columnLength = cell.value ? cell.value.toString().length : 10;
+            if (columnLength > maxLength) {
+              maxLength = columnLength;
+            }
+          });
+          column.width = maxLength < 10 ? 10 : maxLength;
+        });
+      }
+      
+      // Generate Excel file
+      const buffer = await workbook.xlsx.writeBuffer();
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="sales-report-${startDate}-to-${endDate}.xlsx"`);
+      return res.send(buffer);
+    } catch (excelError) {
+      console.error('Error generating Excel file:', excelError);
+      return res.status(500).json({
+        success: false,
+        error: 'Error generating Excel report'
+      });
+    }
+
+  case 'json':
+  default:
+    // Return JSON
+    reportData.generatedOn = new Date();
+    reportData.generatedBy = req.user ? req.user.name : 'System';
+    
+    return res.json({
+      success: true,
+      data: reportData
+    });
+}
+
+// Similar changes should be made to the other report generation functions (generateFinancialReport, generateInventoryReport, etc.)
+// to use the PDF generator for PDF format and Excel.js for XLSX format.
+
   } catch (err) {
     console.error('Error generating banking report:', err.message);
     res.status(500).json({

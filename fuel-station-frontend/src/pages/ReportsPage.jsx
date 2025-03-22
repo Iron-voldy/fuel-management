@@ -248,158 +248,152 @@ const ReportsPage = () => {
     });
   };
 
-  const handleGenerateReport = async () => {
-    // Validate inputs
-    if (!reportType) {
-      setNotification({
-        open: true,
-        message: 'Please select a report type',
-        severity: 'warning'
-      });
-      return;
+// Replace the existing handleGenerateReport function with this one:
+const handleGenerateReport = async () => {
+  // Validate inputs
+  if (!reportType) {
+    setNotification({
+      open: true,
+      message: 'Please select a report type',
+      severity: 'warning'
+    });
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    // Build request parameters
+    const params = {
+      startDate: dateRange.startDate.toISOString().split('T')[0],
+      endDate: dateRange.endDate.toISOString().split('T')[0],
+      format: reportFormat,
+      includeCharts: additionalOptions.includeCharts,
+      includeDetails: additionalOptions.includeDetails,
+      includeSummary: additionalOptions.includeSummary
+    };
+
+    // Add applicable filters
+    if (filterOptions.fuelType && filterOptions.fuelType !== 'All Types') {
+      params.fuelType = filterOptions.fuelType;
     }
-  
-    try {
-      setLoading(true);
-  
-      // Build request parameters
-      const params = {
-        startDate: dateRange.startDate.toISOString(),
-        endDate: dateRange.endDate.toISOString(),
-        format: reportFormat,
-        includeCharts: additionalOptions.includeCharts,
-        includeDetails: additionalOptions.includeDetails,
-        includeSummary: additionalOptions.includeSummary
-      };
-  
-      // Add applicable filters
-      if (filterOptions.fuelType && filterOptions.fuelType !== 'All Types') {
-        params.fuelType = filterOptions.fuelType;
-      }
-      
-      if (filterOptions.paymentMethod && filterOptions.paymentMethod !== 'All Methods') {
-        params.paymentMethod = filterOptions.paymentMethod;
-      }
-      
-      if (filterOptions.customerId) {
-        params.customerId = filterOptions.customerId;
-      }
-      
-      if (filterOptions.stationId) {
-        params.stationId = filterOptions.stationId;
-      }
-      
-      if (filterOptions.employeeId) {
-        params.employeeId = filterOptions.employeeId;
-      }
-      
-      if (filterOptions.expenseCategory) {
-        params.expenseCategory = filterOptions.expenseCategory;
-      }
-      
-      if (filterOptions.bankAccountId) {
-        params.bankAccountId = filterOptions.bankAccountId;
-      }
-  
-      // Determine which API endpoint to use and call the appropriate service method
-      let response;
-      
-      switch (reportType) {
-        case 'sales-summary':
-        case 'sales-by-fuel':
-        case 'sales-by-payment':
-        case 'daily-sales':
-        case 'monthly-sales':
-        case 'customer-sales':
-          params.reportType = reportType.replace('sales-', '');
-          response = await ReportsService.generateSalesReport(params);
-          break;
-          
-        case 'profit-loss':
-        case 'cash-flow':
-        case 'expense-analysis':
-        case 'revenue-analysis':
-        case 'tax-report':
-          params.reportType = reportType;
-          response = await ReportsService.generateFinancialReport(params);
-          break;
-          
-        case 'inventory-status':
-        case 'stock-movement':
-        case 'fuel-price-analysis':
-        case 'low-stock-alert':
-        case 'inventory-valuation':
-          params.reportType = reportType.replace('inventory-', '');
-          response = await ReportsService.generateInventoryReport(params);
-          break;
-          
-        case 'customer-list':
-        case 'credit-customers':
-        case 'outstanding-invoices':
-        case 'customer-aging':
-        case 'top-customers':
-          params.reportType = reportType.replace('customer-', '');
-          response = await ReportsService.generateCustomerReport(params);
-          break;
-          
-        case 'bank-accounts-summary':
-        case 'bank-transactions':
-        case 'reconciliation-report':
-        case 'petty-cash':
-          params.reportType = reportType.replace('-report', '');
-          response = await ReportsService.generateBankingReport(params);
-          break;
-          
-        default:
-          throw new Error('Unknown report type');
-      }
-  
-      // Handle response based on report format
-      if (reportFormat === 'json') {
-        // Show preview for JSON format
-        setReportData(response.data);
-        setOpenPreviewDialog(true);
-      } else {
-        // For binary formats (PDF, Excel, CSV)
-        // Create a blob from the binary data
-        const blob = new Blob([response.data], { 
-          type: reportFormat === 'pdf' ? 'application/pdf' : 
-                reportFormat === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 
-                'text/csv' 
-        });
-  
-        // Create a temporary URL for the blob
-        const url = window.URL.createObjectURL(blob);
-        
-        // Create a temporary link element to trigger the download
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${reportType}-${new Date().toISOString().split('T')[0]}.${reportFormat}`;
-        document.body.appendChild(a);
-        a.click();
-        
-        // Clean up
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-  
-      setNotification({
-        open: true,
-        message: 'Report generated successfully',
-        severity: 'success'
-      });
-    } catch (error) {
-      console.error('Error generating report:', error);
-      setNotification({
-        open: true,
-        message: 'Failed to generate report: ' + (error.response?.data?.error || error.message),
-        severity: 'error'
-      });
-    } finally {
-      setLoading(false);
+    
+    if (filterOptions.paymentMethod && filterOptions.paymentMethod !== 'All Methods') {
+      params.paymentMethod = filterOptions.paymentMethod;
     }
-  };
-  
+    
+    if (filterOptions.customerId) {
+      params.customerId = filterOptions.customerId;
+    }
+    
+    if (filterOptions.stationId) {
+      params.stationId = filterOptions.stationId;
+    }
+    
+    if (filterOptions.employeeId) {
+      params.employeeId = filterOptions.employeeId;
+    }
+    
+    if (filterOptions.expenseCategory) {
+      params.expenseCategory = filterOptions.expenseCategory;
+    }
+    
+    if (filterOptions.bankAccountId) {
+      params.bankAccountId = filterOptions.bankAccountId;
+    }
+
+    // Use the appropriate report service method based on report type
+    let response;
+    
+    // Extract the report category from the report type
+    const reportCategory = reportType.split('-')[0];
+    
+    // Call the appropriate service method based on report category
+    switch (reportCategory) {
+      case 'sales':
+        // Set the reportType parameter expected by backend
+        params.reportType = reportType.replace('sales-', '');
+        response = await ReportsService.generateSalesReport(params);
+        break;
+        
+      case 'profit':
+      case 'cash':
+      case 'expense':
+      case 'revenue':
+      case 'tax':
+        // Financial reports
+        params.reportType = reportType;
+        response = await ReportsService.generateFinancialReport(params);
+        break;
+        
+      case 'inventory':
+      case 'stock':
+      case 'fuel':
+      case 'low':
+        // Inventory reports
+        params.reportType = reportType.replace('inventory-', '').replace('fuel-', '').replace('stock-', '');
+        response = await ReportsService.generateInventoryReport(params);
+        break;
+        
+      case 'customer':
+      case 'credit':
+      case 'outstanding':
+        // Customer reports
+        params.reportType = reportType.replace('customer-', '');
+        response = await ReportsService.generateCustomerReport(params);
+        break;
+        
+      case 'bank':
+      case 'reconciliation':
+      case 'petty':
+        // Banking reports
+        params.reportType = reportType.replace('-report', '');
+        response = await ReportsService.generateBankingReport(params);
+        break;
+        
+      default:
+        throw new Error(`Unknown report type: ${reportType}`);
+    }
+
+    // Handle response based on report format
+    if (reportFormat === 'json') {
+      // Show preview for JSON format
+      setReportData(response.data);
+      setOpenPreviewDialog(true);
+    } else {
+      // For file formats (pdf, xlsx, csv), create a download from the blob
+      const contentType = 
+        reportFormat === 'pdf' ? 'application/pdf' : 
+        reportFormat === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 
+        'text/csv';
+      
+      const blob = new Blob([response.data], { type: contentType });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${reportType}-${new Date().toISOString().split('T')[0]}.${reportFormat}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }
+
+    setNotification({
+      open: true,
+      message: 'Report generated successfully',
+      severity: 'success'
+    });
+  } catch (error) {
+    console.error('Error generating report:', error);
+    setNotification({
+      open: true,
+      message: 'Failed to generate report: ' + (error.response?.data?.error || error.message),
+      severity: 'error'
+    });
+  } finally {
+    setLoading(false);
+  }
+}; 
 
   const handleScheduleReport = async () => {
     try {

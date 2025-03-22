@@ -51,6 +51,8 @@ export const authAPI = {
   getUser: () => api.get('/auth/user')
 };
 
+
+
 // Dashboard API
 export const dashboardAPI = {
   getFinancialSummary: () => api.get('/dashboard/financial-summary'),
@@ -134,6 +136,110 @@ export const customerAPI = {
   setupCreditAccount: (id, data) => api.post(`/customers/${id}/credit-account`, data),
   updateCreditAccount: (id, data) => api.put(`/customers/${id}/credit-account`, data),
   getCreditReport: (id, params) => api.get(`/customers/${id}/credit-report`, { params })
+};
+
+// This code should be added to src/services/api.js
+
+// Add this function to handle file downloads using the responseType: 'blob' option
+
+/**
+ * General function for downloading files from API
+ * @param {string} endpoint - API endpoint
+ * @param {Object} params - Query parameters
+ * @param {string} filename - Default filename for download
+ * @param {string} fileFormat - File format (pdf, xlsx, csv)
+ * @returns {Promise} - Promise for the download process
+ */
+export const downloadFile = async (endpoint, params, filename, fileFormat) => {
+  try {
+    // Set the appropriate response type for file downloads
+    const response = await api.get(endpoint, {
+      params,
+      responseType: 'blob'
+    });
+    
+    // Create a Blob from the response data
+    const contentType = 
+      fileFormat === 'pdf' ? 'application/pdf' : 
+      fileFormat === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 
+      'text/csv';
+    
+    const blob = new Blob([response.data], { type: contentType });
+    
+    // Create a link element and trigger download
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || `report-${new Date().toISOString().split('T')[0]}.${fileFormat}`;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Clean up
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    return true;
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    throw error;
+  }
+};
+
+// Update the reports API section
+export const reportsAPI = {
+  generateSalesReport: (params) => {
+    // If format is not json, use the download function
+    if (params.format && params.format !== 'json') {
+      const filename = `sales-report-${params.startDate}-${params.endDate}.${params.format}`;
+      return downloadFile('/reports/sales', params, filename, params.format);
+    }
+    // Otherwise return json data
+    return api.get('/reports/sales', { params });
+  },
+  
+  generateFinancialReport: (params) => {
+    if (params.format && params.format !== 'json') {
+      const filename = `financial-report-${params.startDate}-${params.endDate}.${params.format}`;
+      return downloadFile('/reports/financial', params, filename, params.format);
+    }
+    return api.get('/reports/financial', { params });
+  },
+  
+  generateInventoryReport: (params) => {
+    if (params.format && params.format !== 'json') {
+      const filename = `inventory-report-${params.startDate}-${params.endDate}.${params.format}`;
+      return downloadFile('/reports/inventory', params, filename, params.format);
+    }
+    return api.get('/reports/inventory', { params });
+  },
+  
+  generateCustomerReport: (params) => {
+    if (params.format && params.format !== 'json') {
+      const filename = `customer-report-${params.startDate}-${params.endDate}.${params.format}`;
+      return downloadFile('/reports/customers', params, filename, params.format);
+    }
+    return api.get('/reports/customers', { params });
+  },
+  
+  generateBankingReport: (params) => {
+    if (params.format && params.format !== 'json') {
+      const filename = `banking-report-${params.startDate}-${params.endDate}.${params.format}`;
+      return downloadFile('/reports/banking', params, filename, params.format);
+    }
+    return api.get('/reports/banking', { params });
+  },
+  
+  generatePettyCashReport: (params) => {
+    if (params.format && params.format !== 'json') {
+      const filename = `petty-cash-report-${params.startDate}-${params.endDate}.${params.format}`;
+      return downloadFile('/reports/petty-cash/transactions', params, filename, params.format);
+    }
+    return api.get('/reports/petty-cash/transactions', { params });
+  },
+  
+  getScheduledReports: () => api.get('/reports/schedule'),
+  scheduleReport: (data) => api.post('/reports/schedule', data),
+  deleteScheduledReport: (id) => api.delete(`/reports/schedule/${id}`)
 };
 
 // Invoice API
