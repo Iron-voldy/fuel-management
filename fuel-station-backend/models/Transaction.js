@@ -37,8 +37,8 @@ const TransactionSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['cash', 'bank', 'card', 'credit', 'other'],
-    default: 'cash'
+    required: true,
+    enum: ['Cash', 'Card', 'Credit', 'Bank Transfer', 'Other'],
   },
   relatedDocumentId: {
     type: String
