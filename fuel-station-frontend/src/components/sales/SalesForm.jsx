@@ -1,3 +1,4 @@
+// src/components/sales/SalesForm.jsx
 import React, { useState, useEffect } from 'react';
 import {
   DialogTitle,
@@ -15,293 +16,25 @@ import {
   CircularProgress,
   FormHelperText,
   Alert,
-  Tooltip // Add Tooltip import here
+  Tooltip,
+  FormControl,
+  InputLabel,
+  Select
 } from '@mui/material';
 import {
   LocalGasStation as GasIcon,
   ReceiptLong as ReceiptIcon,
   Calculate as CalculateIcon
 } from '@mui/icons-material';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import salesValidator from '../../validators/salesValidator';
 
 const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
-  const initialFormState = {
-    fuelType: '',
-    quantity: '',
-    unitPrice: '',
-    totalAmount: '',
-    paymentMethod: 'Cash',
-    customerId: '',
-    vehicleNumber: '',
-    date: new Date().toISOString().slice(0, 16), // Format: YYYY-MM-DDThh:mm
-    notes: '',
-    stationId: '' // Added stationId field
-  };
-
-  const [formData, setFormData] = useState(initialFormState);
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [customers, setCustomers] = useState([]);
-  const [loadingCustomers, setLoadingCustomers] = useState(false);
-  const [currentFuelPrices, setCurrentFuelPrices] = useState({});
-  const [loadingPrices, setLoadingPrices] = useState(false);
-
-  // Fetch customers
-  const fetchCustomers = async () => {
-    try {
-      setLoadingCustomers(true);
-      const res = await api.get('/customers');
-      if (res.data && res.data.data) {
-        setCustomers(res.data.data);
-      }
-    } catch (err) {
-      console.error('Error fetching customers:', err);
-    } finally {
-      setLoadingCustomers(false);
-    }
-  };
-
-  // Fetch current fuel prices
-  const fetchCurrentPrices = async () => {
-    try {
-      setLoadingPrices(true);
-      const res = await api.get('/inventory');
-      if (res.data && res.data.data) {
-        // Create a map of fuel types to their current selling prices
-        const priceMap = {};
-        res.data.data.forEach(item => {
-          priceMap[item.fuelType] = item.sellingPrice;
-        });
-        setCurrentFuelPrices(priceMap);
-      }
-    } catch (err) {
-      console.error('Error fetching fuel prices:', err);
-    } finally {
-      setLoadingPrices(false);
-    }
-  };
-
-  // Fetch stations
-  const [stations, setStations] = useState([]);
-  const [loadingStations, setLoadingStations] = useState(false);
-
-  const fetchStations = async () => {
-    try {
-      setLoadingStations(true);
-      const res = await api.get('/stations');
-      if (res.data && res.data.data) {
-        setStations(res.data.data);
-        
-        // If there's only one station, automatically select it
-        if (res.data.data.length === 1) {
-          setFormData(prevState => ({
-            ...prevState,
-            stationId: res.data.data[0]._id
-          }));
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching stations:', err);
-    } finally {
-      setLoadingStations(false);
-    }
-  };
-
-  // Populate form with sale data when editing
-  useEffect(() => {
-    if (sale) {
-      setFormData({
-        fuelType: sale.fuelType || '',
-        quantity: sale.quantity || '',
-        unitPrice: sale.unitPrice || '',
-        totalAmount: sale.totalAmount || '',
-        paymentMethod: sale.paymentMethod || 'Cash',
-        customerId: sale.customerId || '',
-        vehicleNumber: sale.vehicleNumber || '',
-        date: new Date(sale.date).toISOString().slice(0, 16) || new Date().toISOString().slice(0, 16),
-        notes: sale.notes || '',
-        stationId: sale.stationId || ''
-      });
-    } else {
-      setFormData(initialFormState);
-    }
-
-    // Fetch customers, fuel prices, and stations when component mounts
-    fetchCustomers();
-    fetchCurrentPrices();
-    fetchStations();
-  }, [sale]);
-
-  // Handle form input changes
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    
-    // Clear error for this field when changed
-    setErrors({
-      ...errors,
-      [name]: undefined
-    });
-    
-    // Special handling for quantity and unit price to auto-calculate total
-    if (name === 'quantity' || name === 'unitPrice') {
-      const quantity = name === 'quantity' ? parseFloat(value) : parseFloat(formData.quantity || 0);
-      const unitPrice = name === 'unitPrice' ? parseFloat(value) : parseFloat(formData.unitPrice || 0);
-      
-      if (!isNaN(quantity) && !isNaN(unitPrice)) {
-        const totalAmount = (quantity * unitPrice).toFixed(2);
-        setFormData({
-          ...formData,
-          [name]: value,
-          totalAmount
-        });
-      } else {
-        setFormData({
-          ...formData,
-          [name]: value
-        });
-      }
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value
-      });
-    }
-  };
-
-  // Handle fuel type change to auto-populate unit price
-  const handleFuelTypeChange = (e) => {
-    const fuelType = e.target.value;
-    setFormData({
-      ...formData,
-      fuelType,
-      unitPrice: currentFuelPrices[fuelType] || ''
-    });
-    
-    // Clear error
-    setErrors({
-      ...errors,
-      fuelType: undefined
-    });
-    
-    // If quantity is already set, recalculate total amount
-    if (formData.quantity) {
-      const quantity = parseFloat(formData.quantity);
-      const unitPrice = currentFuelPrices[fuelType] || 0;
-      
-      if (!isNaN(quantity) && unitPrice > 0) {
-        const totalAmount = (quantity * unitPrice).toFixed(2);
-        setFormData(prev => ({
-          ...prev,
-          fuelType,
-          unitPrice,
-          totalAmount
-        }));
-      }
-    }
-  };
-
-  // Handle customer change
-  const handleCustomerChange = (event, newValue) => {
-    setFormData({
-      ...formData,
-      customerId: newValue ? newValue._id : '',
-      // If customer has vehicles, pre-fill first vehicle
-      vehicleNumber: newValue && newValue.authorizedVehicles && newValue.authorizedVehicles.length > 0 
-        ? newValue.authorizedVehicles[0].vehicleNumber 
-        : formData.vehicleNumber
-    });
-  };
-
-  // Validate form
-  const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formData.fuelType) {
-      newErrors.fuelType = 'Fuel type is required';
-    }
-    
-    if (!formData.quantity) {
-      newErrors.quantity = 'Quantity is required';
-    } else if (isNaN(parseFloat(formData.quantity)) || parseFloat(formData.quantity) <= 0) {
-      newErrors.quantity = 'Quantity must be a positive number';
-    }
-    
-    if (!formData.unitPrice) {
-      newErrors.unitPrice = 'Unit price is required';
-    } else if (isNaN(parseFloat(formData.unitPrice)) || parseFloat(formData.unitPrice) <= 0) {
-      newErrors.unitPrice = 'Unit price must be a positive number';
-    }
-    
-    if (!formData.totalAmount) {
-      newErrors.totalAmount = 'Total amount is required';
-    } else if (isNaN(parseFloat(formData.totalAmount)) || parseFloat(formData.totalAmount) <= 0) {
-      newErrors.totalAmount = 'Total amount must be a positive number';
-    }
-    
-    if (!formData.paymentMethod) {
-      newErrors.paymentMethod = 'Payment method is required';
-    }
-    
-    if (formData.paymentMethod === 'Credit' && !formData.customerId) {
-      newErrors.customerId = 'Customer is required for credit sales';
-    }
-    
-    if (!formData.date) {
-      newErrors.date = 'Date and time are required';
-    }
-    
-    if (!formData.stationId) {
-      newErrors.stationId = 'Station ID is required';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (validateForm()) {
-      try {
-        setLoading(true);
-        // Convert numeric values
-        const submissionData = {
-          ...formData,
-          quantity: parseFloat(formData.quantity),
-          unitPrice: parseFloat(formData.unitPrice),
-          totalAmount: parseFloat(formData.totalAmount),
-          // Convert local datetime to ISO string
-          date: new Date(formData.date).toISOString()
-        };
-        
-        await onSubmit(submissionData);
-      } catch (error) {
-        console.error('Error submitting sale:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  // Fuel type options
-  const fuelTypes = [
-    'Petrol 92',
-    'Petrol 95',
-    'Auto Diesel',
-    'Super Diesel',
-    'Kerosene'
-  ];
-
-  // Payment method options
-  const paymentMethods = [
-    'Cash',
-    'BankCard',
-    'BankTransfer',
-    'Credit',
-    'Other'
-  ];
-
-  // Format currency
+  // Helper functions for displaying validation state
+  const hasError = (field) => touched[field] && !!errors[field];
+  const getError = (field) => (touched[field] && errors[field]) || '';
+  
+  // Format currency for display
   const formatCurrency = (amount) => {
     if (!amount) return '';
     return new Intl.NumberFormat('en-US', {
@@ -311,46 +44,410 @@ const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
     }).format(amount);
   };
 
+  const initialFormState = {
+    fuelType: '',
+    quantity: '',
+    unitPrice: '',
+    totalAmount: '',
+    paymentMethod: 'Cash',
+    customerId: '',
+    vehicleNumber: '',
+    date: new Date().toISOString(),
+    notes: '',
+    stationId: ''
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [touched, setTouched] = useState({});
+  
+  // Reference data
+  const [customers, setCustomers] = useState([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [currentPrices, setCurrentPrices] = useState({});
+  const [loadingPrices, setLoadingPrices] = useState(false);
+  const [stations, setStations] = useState([]);
+  const [loadingStations, setLoadingStations] = useState(false);
+
+  // Define fuel types
+  const fuelTypes = [
+    'Petrol 92',
+    'Petrol 95',
+    'Auto Diesel',
+    'Super Diesel',
+    'Kerosene'
+  ];
+
+  // Define payment methods
+  const paymentMethods = [
+    'Cash',
+    'Card',
+    'Credit',
+    'Bank Transfer',
+    'Other'
+  ];
+
+  // Fetch reference data
+  useEffect(() => {
+    fetchCustomers();
+    fetchCurrentPrices();
+    fetchStations();
+
+    // If editing, populate form with sale data
+    if (sale) {
+      const formattedSale = {
+        ...sale,
+        date: new Date(sale.date).toISOString()
+      };
+      setFormData(formattedSale);
+      
+      // Mark all fields as touched for validation
+      const allTouched = Object.keys(formattedSale).reduce((acc, field) => {
+        acc[field] = true;
+        return acc;
+      }, {});
+      
+      setTouched(allTouched);
+    }
+  }, [sale, api]);
+  
+  // Handle form input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Update form data
+    setFormData(prevData => ({
+      ...prevData,
+      [name]: value
+    }));
+    
+    // Mark field as touched
+    setTouched(prevTouched => ({
+      ...prevTouched,
+      [name]: true
+    }));
+    
+    // Clear error for this field when changed
+    if (errors[name]) {
+      setErrors(prevErrors => ({
+        ...prevErrors,
+        [name]: undefined
+      }));
+    }
+    
+    // Special handling for quantity and unit price to auto-calculate total
+    if (name === 'quantity' || name === 'unitPrice') {
+      const quantity = name === 'quantity' ? parseFloat(value) : parseFloat(formData.quantity || 0);
+      const unitPrice = name === 'unitPrice' ? parseFloat(value) : parseFloat(formData.unitPrice || 0);
+      
+      if (!isNaN(quantity) && !isNaN(unitPrice)) {
+        const totalAmount = (quantity * unitPrice).toFixed(2);
+        setFormData(prevData => ({
+          ...prevData,
+          [name]: value,
+          totalAmount
+        }));
+        
+        // Mark totalAmount as touched
+        setTouched(prevTouched => ({
+          ...prevTouched,
+          totalAmount: true
+        }));
+      }
+    }
+  };
+
+  // Handle fuel type change to auto-populate unit price
+  const handleFuelTypeChange = (e) => {
+    const fuelType = e.target.value;
+    
+    // Update fuel type
+    setFormData(prevData => ({
+      ...prevData,
+      fuelType
+    }));
+    
+    // Mark field as touched
+    setTouched(prevTouched => ({
+      ...prevTouched,
+      fuelType: true
+    }));
+    
+    // Clear error
+    if (errors.fuelType) {
+      setErrors(prevErrors => ({
+        ...prevErrors,
+        fuelType: undefined
+      }));
+    }
+    
+    // Auto-populate unit price if available
+    if (currentPrices[fuelType]) {
+      const unitPrice = currentPrices[fuelType];
+      
+      setFormData(prevData => ({
+        ...prevData,
+        unitPrice
+      }));
+      
+      // If quantity is already set, recalculate total amount
+      if (formData.quantity && !isNaN(parseFloat(formData.quantity))) {
+        const quantity = parseFloat(formData.quantity);
+        const totalAmount = (quantity * unitPrice).toFixed(2);
+        
+        setFormData(prevData => ({
+          ...prevData,
+          fuelType,
+          unitPrice,
+          totalAmount
+        }));
+        
+        // Mark these fields as touched
+        setTouched(prevTouched => ({
+          ...prevTouched,
+          unitPrice: true,
+          totalAmount: true
+        }));
+      } else {
+        setFormData(prevData => ({
+          ...prevData,
+          fuelType,
+          unitPrice
+        }));
+        
+        // Mark unit price as touched
+        setTouched(prevTouched => ({
+          ...prevTouched,
+          unitPrice: true
+        }));
+      }
+    }
+  };
+  
+  // Handle date change
+  const handleDateChange = (date) => {
+    setFormData(prevData => ({
+      ...prevData,
+      date: date ? date.toISOString() : null
+    }));
+    
+    // Mark field as touched
+    setTouched(prevTouched => ({
+      ...prevTouched,
+      date: true
+    }));
+    
+    // Clear error
+    if (errors.date) {
+      setErrors(prevErrors => ({
+        ...prevErrors,
+        date: undefined
+      }));
+    }
+  };
+  
+  // Handle customer change
+  const handleCustomerChange = (event, newValue) => {
+    setFormData(prevData => ({
+      ...prevData,
+      customerId: newValue ? newValue._id : '',
+      
+      // If customer has vehicles, pre-fill first vehicle
+      vehicleNumber: newValue && newValue.authorizedVehicles && newValue.authorizedVehicles.length > 0 
+        ? newValue.authorizedVehicles[0].vehicleNumber 
+        : prevData.vehicleNumber
+    }));
+    
+    // Mark field as touched
+    setTouched(prevTouched => ({
+      ...prevTouched,
+      customerId: true,
+      vehicleNumber: true
+    }));
+    
+    // Clear errors
+    setErrors(prevErrors => ({
+      ...prevErrors,
+      customerId: undefined,
+      vehicleNumber: undefined
+    }));
+  };
+  
+  // Handle field blur for validation
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    
+    // Mark field as touched
+    setTouched(prevTouched => ({
+      ...prevTouched,
+      [name]: true
+    }));
+    
+    // Validate field
+    const errorMessage = salesValidator.validateSalesField(name, value, formData);
+    
+    if (errorMessage) {
+      setErrors(prevErrors => ({
+        ...prevErrors,
+        [name]: errorMessage
+      }));
+    }
+  };
+  
+  // Fetch customers
+  const fetchCustomers = async () => {
+    try {
+      setLoadingCustomers(true);
+      const response = await api.get('/customers');
+      if (response.data && response.data.data) {
+        setCustomers(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  };
+  
+  // Function to validate the entire form
+  const validateForm = () => {
+    const validationResult = salesValidator.validateSalesForm(formData);
+    
+    if (!validationResult.isValid) {
+      setErrors(validationResult.errors);
+      
+      // Mark all fields as touched
+      const allTouched = Object.keys(formData).reduce((acc, field) => {
+        acc[field] = true;
+        return acc;
+      }, {});
+      
+      setTouched(allTouched);
+    }
+    
+    return validationResult.isValid;
+  };
+  
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validate the form
+    if (!validateForm()) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setSubmitError(null);
+      
+      // Convert data types
+      const submissionData = {
+        ...formData,
+        quantity: parseFloat(formData.quantity),
+        unitPrice: parseFloat(formData.unitPrice),
+        totalAmount: parseFloat(formData.totalAmount),
+        // Ensure date is in ISO format
+        date: formData.date instanceof Date ? formData.date.toISOString() : formData.date
+      };
+      
+      // Submit the form data
+      await onSubmit(submissionData);
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      setSubmitError(error.message || 'Failed to save sale. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch stations
+  const fetchStations = async () => {
+    try {
+      setLoadingStations(true);
+      const response = await api.get('/stations');
+      if (response.data && response.data.data) {
+        setStations(response.data.data);
+        
+        // If there's only one station, automatically select it
+        if (response.data.data.length === 1 && !formData.stationId) {
+          setFormData(prevState => ({
+            ...prevState,
+            stationId: response.data.data[0]._id
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching stations:', error);
+    } finally {
+      setLoadingStations(false);
+    }
+  };
+
+  // Fetch current fuel prices
+  const fetchCurrentPrices = async () => {
+    try {
+      setLoadingPrices(true);
+      const response = await api.get('/inventory');
+      if (response.data && response.data.data) {
+        // Create a map of fuel types to their current selling prices
+        const priceMap = {};
+        response.data.data.forEach(item => {
+          priceMap[item.fuelType] = item.sellingPrice;
+        });
+        setCurrentPrices(priceMap);
+      }
+    } catch (error) {
+      console.error('Error fetching fuel prices:', error);
+    } finally {
+      setLoadingPrices(false);
+    }
+  };
+
+  // Render the form
   return (
     <>
       <DialogTitle>
-        {sale ? 'Edit Sale Record' : 'Add New Sale'}
+        {sale ? 'Edit Sale Record' : 'Record New Sale'}
       </DialogTitle>
-      <form onSubmit={handleSubmit}>
-        <DialogContent>
-          <Grid container spacing={3}>
+      <DialogContent>
+        <form onSubmit={handleSubmit}>
+          {submitError && (
+            <Alert severity="error" sx={{ mb: 2, mt: 2 }}>
+              {submitError}
+            </Alert>
+          )}
+          
+          <Grid container spacing={3} sx={{ mt: 1 }}>
             {/* Fuel Type */}
             <Grid item xs={12} sm={6}>
-              <TextField
-                select
-                fullWidth
-                label="Fuel Type"
-                name="fuelType"
-                value={formData.fuelType}
-                onChange={handleFuelTypeChange}
-                error={!!errors.fuelType}
-                helperText={errors.fuelType}
-                required
-                variant="outlined"
-                InputProps={{
-                  startAdornment: (
+              <FormControl fullWidth error={hasError('fuelType')}>
+                <InputLabel id="fuel-type-label">Fuel Type</InputLabel>
+                <Select
+                  labelId="fuel-type-label"
+                  name="fuelType"
+                  value={formData.fuelType}
+                  onChange={handleFuelTypeChange}
+                  onBlur={handleBlur}
+                  label="Fuel Type"
+                  startAdornment={
                     <InputAdornment position="start">
                       <GasIcon />
                     </InputAdornment>
-                  ),
-                }}
-                disabled={loading || loadingPrices}
-              >
-                {loadingPrices ? (
-                  <MenuItem disabled>Loading fuel types...</MenuItem>
-                ) : (
-                  fuelTypes.map((type) => (
+                  }
+                  disabled={loading || loadingPrices}
+                >
+                  <MenuItem value="" disabled>Select Fuel Type</MenuItem>
+                  {fuelTypes.map((type) => (
                     <MenuItem key={type} value={type}>
-                      {type} {currentFuelPrices[type] ? `(${formatCurrency(currentFuelPrices[type])}/L)` : ''}
+                      {type} {currentPrices[type] ? `(${formatCurrency(currentPrices[type])}/L)` : ''}
                     </MenuItem>
-                  ))
-                )}
-              </TextField>
+                  ))}
+                </Select>
+                {hasError('fuelType') && <FormHelperText>{getError('fuelType')}</FormHelperText>}
+              </FormControl>
             </Grid>
             
             {/* Quantity */}
@@ -362,8 +459,9 @@ const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
                 type="number"
                 value={formData.quantity}
                 onChange={handleChange}
-                error={!!errors.quantity}
-                helperText={errors.quantity}
+                onBlur={handleBlur}
+                error={hasError('quantity')}
+                helperText={getError('quantity')}
                 required
                 inputProps={{ step: "0.01", min: "0" }}
                 variant="outlined"
@@ -381,8 +479,9 @@ const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
                 type="number"
                 value={formData.unitPrice}
                 onChange={handleChange}
-                error={!!errors.unitPrice}
-                helperText={errors.unitPrice}
+                onBlur={handleBlur}
+                error={hasError('unitPrice')}
+                helperText={getError('unitPrice')}
                 required
                 inputProps={{ step: "0.01", min: "0" }}
                 variant="outlined"
@@ -402,8 +501,9 @@ const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
                 type="number"
                 value={formData.totalAmount}
                 onChange={handleChange}
-                error={!!errors.totalAmount}
-                helperText={errors.totalAmount}
+                onBlur={handleBlur}
+                error={hasError('totalAmount')}
+                helperText={getError('totalAmount')}
                 required
                 inputProps={{ step: "0.01", min: "0" }}
                 variant="outlined"
@@ -422,10 +522,23 @@ const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
                             
                             if (!isNaN(quantity) && !isNaN(unitPrice)) {
                               const totalAmount = (quantity * unitPrice).toFixed(2);
-                              setFormData({
-                                ...formData,
+                              
+                              setFormData(prevData => ({
+                                ...prevData,
                                 totalAmount
-                              });
+                              }));
+                              
+                              setTouched(prevTouched => ({
+                                ...prevTouched,
+                                totalAmount: true
+                              }));
+                              
+                              if (errors.totalAmount) {
+                                setErrors(prevErrors => ({
+                                  ...prevErrors,
+                                  totalAmount: undefined
+                                }));
+                              }
                             }
                           }}
                         />
@@ -439,26 +552,26 @@ const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
             
             {/* Payment Method */}
             <Grid item xs={12} sm={6}>
-              <TextField
-                select
-                fullWidth
-                label="Payment Method"
-                name="paymentMethod"
-                value={formData.paymentMethod}
-                onChange={handleChange}
-                error={!!errors.paymentMethod}
-                helperText={errors.paymentMethod}
-                required
-                variant="outlined"
-                disabled={loading}
-              >
-                {paymentMethods.map((method) => (
-                  <MenuItem key={method} value={method}>{method}</MenuItem>
-                ))}
-              </TextField>
+              <FormControl fullWidth error={hasError('paymentMethod')}>
+                <InputLabel id="payment-method-label">Payment Method</InputLabel>
+                <Select
+                  labelId="payment-method-label"
+                  name="paymentMethod"
+                  value={formData.paymentMethod}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  label="Payment Method"
+                  disabled={loading}
+                >
+                  {paymentMethods.map((method) => (
+                    <MenuItem key={method} value={method}>{method}</MenuItem>
+                  ))}
+                </Select>
+                {hasError('paymentMethod') && <FormHelperText>{getError('paymentMethod')}</FormHelperText>}
+              </FormControl>
             </Grid>
             
-            {/* Customer (Optional, required for Credit) */}
+            {/* Customer (Required for Credit) */}
             <Grid item xs={12} sm={6}>
               <Autocomplete
                 options={customers}
@@ -470,9 +583,9 @@ const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Customer"
-                    error={!!errors.customerId}
-                    helperText={errors.customerId}
+                    label={formData.paymentMethod === 'Credit' ? "Customer (Required)" : "Customer (Optional)"}
+                    error={hasError('customerId')}
+                    helperText={getError('customerId')}
                     required={formData.paymentMethod === 'Credit'}
                     InputProps={{
                       ...params.InputProps,
@@ -487,8 +600,8 @@ const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
                 )}
                 disabled={loading}
               />
-              {formData.paymentMethod === 'Credit' && (
-                <FormHelperText>Required for credit sales</FormHelperText>
+              {formData.paymentMethod === 'Credit' && !hasError('customerId') && (
+                <FormHelperText>Customer is required for credit sales</FormHelperText>
               )}
             </Grid>
             
@@ -498,8 +611,11 @@ const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
                 fullWidth
                 label="Vehicle Number"
                 name="vehicleNumber"
-                value={formData.vehicleNumber}
+                value={formData.vehicleNumber || ''}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                error={hasError('vehicleNumber')}
+                helperText={getError('vehicleNumber')}
                 variant="outlined"
                 placeholder="e.g. ABC-1234"
                 disabled={loading}
@@ -508,47 +624,47 @@ const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
             
             {/* Date and Time */}
             <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
+              <DateTimePicker
                 label="Date and Time"
-                name="date"
-                type="datetime-local"
-                value={formData.date}
-                onChange={handleChange}
-                error={!!errors.date}
-                helperText={errors.date}
-                required
-                variant="outlined"
-                InputLabelProps={{ shrink: true }}
+                value={formData.date ? new Date(formData.date) : null}
+                onChange={handleDateChange}
+                slotProps={{ 
+                  textField: { 
+                    fullWidth: true,
+                    error: hasError('date'),
+                    helperText: getError('date'),
+                    required: true,
+                    onBlur: () => {
+                      setTouched(prev => ({...prev, date: true}));
+                    }
+                  } 
+                }}
                 disabled={loading}
               />
             </Grid>
             
             {/* Station */}
             <Grid item xs={12} sm={6}>
-              <TextField
-                select
-                fullWidth
-                label="Station"
-                name="stationId"
-                value={formData.stationId}
-                onChange={handleChange}
-                error={!!errors.stationId}
-                helperText={errors.stationId}
-                required
-                variant="outlined"
-                disabled={loading || loadingStations}
-              >
-                {loadingStations ? (
-                  <MenuItem disabled>Loading stations...</MenuItem>
-                ) : (
-                  stations.map((station) => (
+              <FormControl fullWidth error={hasError('stationId')}>
+                <InputLabel id="station-label">Station</InputLabel>
+                <Select
+                  labelId="station-label"
+                  name="stationId"
+                  value={formData.stationId}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  label="Station"
+                  disabled={loading || loadingStations}
+                >
+                  <MenuItem value="" disabled>Select Station</MenuItem>
+                  {stations.map((station) => (
                     <MenuItem key={station._id} value={station._id}>
                       {station.name}
                     </MenuItem>
-                  ))
-                )}
-              </TextField>
+                  ))}
+                </Select>
+                {hasError('stationId') && <FormHelperText>{getError('stationId')}</FormHelperText>}
+              </FormControl>
             </Grid>
             
             {/* Notes */}
@@ -557,7 +673,7 @@ const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
                 fullWidth
                 label="Notes"
                 name="notes"
-                value={formData.notes}
+                value={formData.notes || ''}
                 onChange={handleChange}
                 multiline
                 rows={3}
@@ -588,22 +704,22 @@ const SalesForm = ({ sale, onSubmit, onCancel, api }) => {
               </Typography>
             </Box>
           )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={onCancel} disabled={loading}>
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
-            color="primary"
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={24} color="inherit" /> : <ReceiptIcon />}
-          >
-            {loading ? 'Saving...' : (sale ? 'Update Sale' : 'Record Sale')}
-          </Button>
-        </DialogActions>
-      </form>
+        </form>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 3 }}>
+        <Button onClick={onCancel} disabled={loading}>
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSubmit} 
+          variant="contained" 
+          color="primary"
+          disabled={loading}
+          startIcon={loading ? <CircularProgress size={24} color="inherit" /> : <ReceiptIcon />}
+        >
+          {loading ? 'Saving...' : (sale ? 'Update Sale' : 'Record Sale')}
+        </Button>
+      </DialogActions>
     </>
   );
 };

@@ -89,14 +89,14 @@ export const isValidEmail = (email) => {
     }
   };
   
-  // Validate sri lankan vehicle number format
+  // Validate Sri Lankan vehicle number format
   export const isValidVehicleNumber = (number) => {
     // Regex for formats like ABC-1234, AB-1234, 123-1234, etc.
     const vehicleRegex = /^[A-Z0-9]{2,3}[-][0-9]{4}$/i;
     return vehicleRegex.test(number);
   };
   
-  // Validate sri lankan NIC number
+  // Validate Sri Lankan NIC number
   export const isValidNIC = (nic) => {
     // Old format: 9 digits plus V/X OR new format: 12 digits
     const oldNICRegex = /^[0-9]{9}[vVxX]$/;
