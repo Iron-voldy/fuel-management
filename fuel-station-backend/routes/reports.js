@@ -3,6 +3,7 @@ const router = express.Router();
 const { check } = require('express-validator');
 const reportController = require('../controllers/reportController');
 const auth = require('../middleware/auth');
+const validate = require('../middleware/validate');
 
 // --------------------------
 // SALES REPORTS
@@ -80,7 +81,7 @@ router.get(
 );
 
 // --------------------------
-// PETTY CASH REPORTS (LEGACY ENDPOINTS)
+// PETTY CASH REPORTS
 // --------------------------
 
 /**
@@ -96,7 +97,8 @@ router.get(
       check('startDate', 'Start date must be valid').optional().isISO8601(),
       check('endDate', 'End date must be valid').optional().isISO8601(),
       check('format', 'Format must be json, csv, or pdf').optional().isIn(['json', 'csv', 'pdf'])
-    ]
+    ],
+    validate
   ],
   reportController.generatePettyCashTransactionReport
 );
@@ -141,7 +143,8 @@ router.post(
       check('frequency', 'Frequency is required').isIn(['daily', 'weekly', 'monthly', 'quarterly']),
       check('recipients', 'At least one recipient email is required').isArray({ min: 1 }),
       check('format', 'Format is required').isIn(['pdf', 'csv', 'xlsx', 'json'])
-    ]
+    ],
+    validate
   ],
   reportController.scheduleReport
 );

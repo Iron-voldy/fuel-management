@@ -39,8 +39,7 @@ const SalesSchema = new mongoose.Schema({
   paymentMethod: {
     type: String,
     required: true,
-    enum: ['Cash', 'BankCard', 'BankTransfer', 'Credit', 'Other'],
-    default: 'Cash'
+    enum: ['cash', 'card', 'transfer', 'credit', 'other'] // Note lowercase values
   },
   customerId: {
     type: mongoose.Schema.Types.ObjectId,

@@ -94,6 +94,7 @@ try {
   console.error('Error loading petty cash routes:', err.message);
 }
 
+// In server.js, ensure this part is working:
 try {
   const reportRoutes = require('./routes/reports');
   app.use('/api/reports', reportRoutes);
