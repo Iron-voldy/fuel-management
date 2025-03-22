@@ -51,6 +51,7 @@ import {
   Close as CloseIcon
 } from '@mui/icons-material';
 import AuthContext from '../context/AuthContext';
+import ReportsService from '../services/reports.service';
 
 const ReportsPage = () => {
   const { api, user } = useContext(AuthContext);
@@ -247,20 +248,6 @@ const ReportsPage = () => {
     });
   };
 
-  const handleAdditionalOptionChange = (field, value) => {
-    setAdditionalOptions({
-      ...additionalOptions,
-      [field]: value
-    });
-  };
-
-  const handleScheduleOptionChange = (field, value) => {
-    setScheduleOptions({
-      ...scheduleOptions,
-      [field]: value
-    });
-  };
-
   const handleGenerateReport = async () => {
     // Validate inputs
     if (!reportType) {
@@ -271,10 +258,10 @@ const ReportsPage = () => {
       });
       return;
     }
-
+  
     try {
       setLoading(true);
-
+  
       // Build request parameters
       const params = {
         startDate: dateRange.startDate.toISOString(),
@@ -284,7 +271,7 @@ const ReportsPage = () => {
         includeDetails: additionalOptions.includeDetails,
         includeSummary: additionalOptions.includeSummary
       };
-
+  
       // Add applicable filters
       if (filterOptions.fuelType && filterOptions.fuelType !== 'All Types') {
         params.fuelType = filterOptions.fuelType;
@@ -313,9 +300,10 @@ const ReportsPage = () => {
       if (filterOptions.bankAccountId) {
         params.bankAccountId = filterOptions.bankAccountId;
       }
-
-      // Determine API endpoint based on report type
-      let endpoint = '/reports';
+  
+      // Determine which API endpoint to use and call the appropriate service method
+      let response;
+      
       switch (reportType) {
         case 'sales-summary':
         case 'sales-by-fuel':
@@ -323,74 +311,78 @@ const ReportsPage = () => {
         case 'daily-sales':
         case 'monthly-sales':
         case 'customer-sales':
-          endpoint = '/reports/sales';
           params.reportType = reportType.replace('sales-', '');
+          response = await ReportsService.generateSalesReport(params);
           break;
+          
         case 'profit-loss':
         case 'cash-flow':
         case 'expense-analysis':
         case 'revenue-analysis':
         case 'tax-report':
-          endpoint = '/reports/financial';
           params.reportType = reportType;
+          response = await ReportsService.generateFinancialReport(params);
           break;
+          
         case 'inventory-status':
         case 'stock-movement':
         case 'fuel-price-analysis':
         case 'low-stock-alert':
         case 'inventory-valuation':
-          endpoint = '/reports/inventory';
           params.reportType = reportType.replace('inventory-', '');
+          response = await ReportsService.generateInventoryReport(params);
           break;
+          
         case 'customer-list':
         case 'credit-customers':
         case 'outstanding-invoices':
         case 'customer-aging':
         case 'top-customers':
-          endpoint = '/reports/customers';
           params.reportType = reportType.replace('customer-', '');
+          response = await ReportsService.generateCustomerReport(params);
           break;
+          
         case 'bank-accounts-summary':
         case 'bank-transactions':
         case 'reconciliation-report':
         case 'petty-cash':
-          endpoint = '/reports/banking';
           params.reportType = reportType.replace('-report', '');
+          response = await ReportsService.generateBankingReport(params);
           break;
+          
         default:
-          endpoint = '/reports';
+          throw new Error('Unknown report type');
       }
-
-      // Make API request
-      const response = await api.get(endpoint, { params });
-
+  
       // Handle response based on report format
       if (reportFormat === 'json') {
         // Show preview for JSON format
         setReportData(response.data);
         setOpenPreviewDialog(true);
       } else {
-        // For other formats, trigger download
-        if (response.data && response.data.downloadUrl) {
-          // If server returns a download URL
-          window.open(response.data.downloadUrl, '_blank');
-        } else {
-          // For direct file download
-          const blob = new Blob([response.data], { 
-            type: reportFormat === 'pdf' ? 'application/pdf' : 
-                  reportFormat === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 
-                  'text/csv' 
-          });
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${reportType}-${new Date().toISOString().split('T')[0]}.${reportFormat}`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-        }
+        // For binary formats (PDF, Excel, CSV)
+        // Create a blob from the binary data
+        const blob = new Blob([response.data], { 
+          type: reportFormat === 'pdf' ? 'application/pdf' : 
+                reportFormat === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 
+                'text/csv' 
+        });
+  
+        // Create a temporary URL for the blob
+        const url = window.URL.createObjectURL(blob);
+        
+        // Create a temporary link element to trigger the download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${reportType}-${new Date().toISOString().split('T')[0]}.${reportFormat}`;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Clean up
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
       }
-
+  
       setNotification({
         open: true,
         message: 'Report generated successfully',
@@ -407,6 +399,7 @@ const ReportsPage = () => {
       setLoading(false);
     }
   };
+  
 
   const handleScheduleReport = async () => {
     try {
@@ -422,7 +415,7 @@ const ReportsPage = () => {
         setLoading(false);
         return;
       }
-
+  
       const scheduleData = {
         reportType,
         frequency: scheduleOptions.frequency,
@@ -438,9 +431,9 @@ const ReportsPage = () => {
           includeSummary: additionalOptions.includeSummary
         }
       };
-
-      await api.post('/reports/schedule', scheduleData);
-
+  
+      await ReportsService.scheduleReport(scheduleData);
+  
       setNotification({
         open: true,
         message: 'Report scheduled successfully',
@@ -534,6 +527,20 @@ const ReportsPage = () => {
         return baseFilters;
     }
   };
+
+  const handleAdditionalOptionChange = (field, value) => {
+  setAdditionalOptions({
+    ...additionalOptions,
+    [field]: value
+  });
+};
+
+const handleScheduleOptionChange = (field, value) => {
+  setScheduleOptions({
+    ...scheduleOptions,
+    [field]: value
+  });
+};
 
   // Render the tab panel content
   const renderTabPanel = (tabIndex) => {
@@ -1267,5 +1274,6 @@ const ReportsPage = () => {
     </Box>
   );
 };
+
 
 export default ReportsPage;

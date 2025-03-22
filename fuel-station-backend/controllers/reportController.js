@@ -364,31 +364,138 @@ exports.generateSalesReport = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="sales-report-${startDate}-to-${endDate}.csv"`);
         return res.send(csv);
 
-      case 'pdf':
-        // Return data for PDF generation
-        reportData.generatedOn = new Date();
-        reportData.generatedBy = req.user ? req.user.name : 'System';
+        case 'pdf':
+          // Generate PDF
+          try {
+            // Note: You'll need to install a PDF generation library like pdfkit
+            // npm install pdfkit
+            const PDFDocument = require('pdfkit');
+            const doc = new PDFDocument();
+            
+            // Set response headers
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename="sales-report-${startDate}-to-${endDate}.pdf"`);
+            
+            // Pipe the PDF document to the response
+            doc.pipe(res);
+            
+            // Add content to the PDF
+            doc.fontSize(20).text(`${reportData.reportType}`, { align: 'center' });
+            doc.fontSize(12).text(`Period: ${startDate} to ${endDate}`, { align: 'center' });
+            doc.moveDown();
+            
+            // Add summary section
+            doc.fontSize(16).text('Summary', { underline: true });
+            doc.moveDown(0.5);
+            
+            if (reportData.summary) {
+              Object.entries(reportData.summary).forEach(([key, value]) => {
+                // Format the key as a readable title
+                const formattedKey = key
+                  .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+                  .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+                  
+                doc.text(`${formattedKey}: ${typeof value === 'number' ? value.toFixed(2) : value}`);
+              });
+            }
+            
+            doc.moveDown();
+            
+            // Add additional sections based on report type
+            if (reportType === 'fuel' && reportData.details) {
+              doc.fontSize(16).text('Fuel Type Breakdown', { underline: true });
+              doc.moveDown(0.5);
+              
+              reportData.details.forEach(item => {
+                doc.text(`${item.fuelType}: ${item.amount.toFixed(2)} (${item.percentageOfTotal.toFixed(2)}%)`);
+              });
+            }
+            
+            // Add more sections for other report types
+            
+            // Finalize the PDF
+            doc.end();
+            return;
+          } catch (pdfError) {
+            console.error('Error generating PDF:', pdfError);
+            return res.status(500).json({
+              success: false,
+              error: 'Error generating PDF'
+            });
+          }
         
-        // In a real system, you'd generate a PDF here
-        // For now, we'll just return the data that would be used for the PDF
-        return res.json({
-          success: true,
-          data: reportData,
-          message: 'PDF report data ready for generation'
-        });
-
-      case 'xlsx':
-        // Return data for Excel generation
-        reportData.generatedOn = new Date();
-        reportData.generatedBy = req.user ? req.user.name : 'System';
-        
-        // In a real system, you'd generate an Excel file here
-        return res.json({
-          success: true,
-          data: reportData,
-          message: 'Excel report data ready for generation'
-        });
-
+        case 'xlsx':
+          // Generate Excel
+          try {
+            // Note: You'll need to install an Excel generation library like exceljs
+            // npm install exceljs
+            const Excel = require('exceljs');
+            const workbook = new Excel.Workbook();
+            const worksheet = workbook.addWorksheet('Sales Report');
+            
+            // Add title and period
+            worksheet.mergeCells('A1:E1');
+            worksheet.getCell('A1').value = reportData.reportType;
+            worksheet.getCell('A1').font = { bold: true, size: 16 };
+            worksheet.getCell('A1').alignment = { horizontal: 'center' };
+            
+            worksheet.mergeCells('A2:E2');
+            worksheet.getCell('A2').value = `Period: ${startDate} to ${endDate}`;
+            worksheet.getCell('A2').alignment = { horizontal: 'center' };
+            
+            // Add summary section
+            worksheet.addRow([]);
+            worksheet.addRow(['Summary']);
+            worksheet.getRow(4).font = { bold: true, underline: true };
+            
+            if (reportData.summary) {
+              Object.entries(reportData.summary).forEach(([key, value], index) => {
+                // Format the key as a readable title
+                const formattedKey = key
+                  .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+                  .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+                  
+                worksheet.addRow([formattedKey, typeof value === 'number' ? value.toFixed(2) : value]);
+              });
+            }
+            
+            // Add additional sections based on report type
+            worksheet.addRow([]);
+            
+            if (reportType === 'fuel' && reportData.details) {
+              worksheet.addRow(['Fuel Type Breakdown']);
+              worksheet.getRow(worksheet.rowCount).font = { bold: true, underline: true };
+              worksheet.addRow(['Fuel Type', 'Quantity', 'Amount', 'Percentage', 'Count']);
+              
+              reportData.details.forEach(item => {
+                worksheet.addRow([
+                  item.fuelType,
+                  item.quantity,
+                  item.amount,
+                  `${item.percentageOfTotal.toFixed(2)}%`,
+                  item.count
+                ]);
+              });
+            }
+            
+            // Add more sections for other report types
+            
+            // Set content type and disposition
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="sales-report-${startDate}-to-${endDate}.xlsx"`);
+            
+            // Write to response
+            await workbook.xlsx.write(res);
+            res.end();
+            return;
+          } catch (xlsxError) {
+            console.error('Error generating Excel:', xlsxError);
+            return res.status(500).json({
+              success: false,
+              error: 'Error generating Excel'
+            });
+          }
+          
       case 'json':
       default:
         // Return JSON
