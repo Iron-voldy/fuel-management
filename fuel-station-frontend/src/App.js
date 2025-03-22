@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 // Context providers
 import { AuthProvider } from './context/AuthContext';
@@ -61,39 +63,41 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AuthProvider>
-        <Router>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            
-            {/* Protected routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<Layout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/bank-accounts" element={<BankAccountsPage />} />
-                <Route path="/sales"  element={<SalesPage />}  />
-                <Route path="/inventory" element={<div>Inventory Page (Coming Soon)</div>} />
-                <Route path="/customers" element={<CustomersPage />} />
-                <Route path="/expenses" element={<div>Expenses Page (Coming Soon)</div>} />
-                <Route path="/reports"   element={<ReportPage />}  />
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <AuthProvider>
+          <Router>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              
+              {/* Protected routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<Layout />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/bank-accounts" element={<BankAccountsPage />} />
+                  <Route path="/sales"  element={<SalesPage />}  />
+                  <Route path="/inventory" element={<div>Inventory Page (Coming Soon)</div>} />
+                  <Route path="/customers" element={<CustomersPage />} />
+                  <Route path="/expenses" element={<div>Expenses Page (Coming Soon)</div>} />
+                  <Route path="/reports"   element={<ReportPage />}  />
+                </Route>
               </Route>
-            </Route>
-            
-            {/* Admin-only routes */}
-            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-              <Route element={<Layout />}>
-                <Route path="/admin" element={<div>Admin Page (Coming Soon)</div>} />
+              
+              {/* Admin-only routes */}
+              <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                <Route element={<Layout />}>
+                  <Route path="/admin" element={<div>Admin Page (Coming Soon)</div>} />
+                </Route>
               </Route>
-            </Route>
-            
-            {/* Fallback routes */}
-            <Route path="/unauthorized" element={<div>Unauthorized Access</div>} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </Router>
-      </AuthProvider>
+              
+              {/* Fallback routes */}
+              <Route path="/unauthorized" element={<div>Unauthorized Access</div>} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </Router>
+        </AuthProvider>
+      </LocalizationProvider>
     </ThemeProvider>
   );
 }
