@@ -624,7 +624,7 @@ async function getStaffMetrics(stationId) {
       loans: {
         activeLoansCount: activeLoans.length,
         totalOutstandingAmount: activeLoans.reduce((sum, loan) => sum + (parseFloat(loan.remainingAmount) || 0), 0)
-      }
+      } 
     };
   } catch (error) {
     console.error('Error in getStaffMetrics:', error);
