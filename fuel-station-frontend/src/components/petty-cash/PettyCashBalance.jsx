@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Grid, Paper, Typography, Box, Divider, LinearProgress, 
   Button, Dialog, DialogTitle, DialogContent, DialogActions,
@@ -34,6 +34,11 @@ const PettyCashBalance = ({ balanceData, isManagerOrAdmin, onUpdateSettings }) =
     });
   };
 
+  // Debug method - log what data we received
+  useEffect(() => {
+    console.log('[PettyCashBalance] Balance data:', balanceData);
+  }, [balanceData]);
+
   // Handle settings dialog open
   const handleOpenSettingsDialog = () => {
     if (balanceData?.balance) {
@@ -61,16 +66,20 @@ const PettyCashBalance = ({ balanceData, isManagerOrAdmin, onUpdateSettings }) =
       setError(null);
       
       const stationId = balanceData?.balance?.stationId || '';
+      console.log(`[PettyCashBalance] Updating settings for station ${stationId}:`, settingsForm);
+      
       const response = await pettyCashAPI.updateBalanceSettings(stationId, settingsForm);
       
       if (response.data && response.data.success) {
+        console.log('[PettyCashBalance] Settings updated successfully:', response.data);
         setSettingsDialogOpen(false);
         onUpdateSettings();
       } else {
+        console.error('[PettyCashBalance] Failed to update settings:', response.data);
         throw new Error('Failed to update settings');
       }
     } catch (err) {
-      console.error('Error updating settings:', err);
+      console.error('[PettyCashBalance] Error updating settings:', err);
       setError('Error updating settings. Please try again.');
     } finally {
       setLoading(false);
@@ -103,10 +112,21 @@ const PettyCashBalance = ({ balanceData, isManagerOrAdmin, onUpdateSettings }) =
   if (!balanceData) {
     return (
       <Box sx={{ textAlign: 'center', py: 2 }}>
-        <Typography color="text.secondary">No balance data available</Typography>
+        <CircularProgress size={30} sx={{ mb: 2 }} />
+        <Typography color="text.secondary">Loading balance data...</Typography>
       </Box>
     );
   }
+
+  // Safe access to balance data
+  const balance = balanceData?.balance || {
+    currentBalance: 0,
+    maxLimit: 10000,
+    minLimit: 2000
+  };
+
+  const needsReplenishment = balanceData?.needsReplenishment || false;
+  const latestTransactions = balanceData?.latestTransactions || [];
 
   return (
     <>
@@ -128,7 +148,7 @@ const PettyCashBalance = ({ balanceData, isManagerOrAdmin, onUpdateSettings }) =
             
             <Box sx={{ my: 1 }}>
               <Typography variant="h3" color={getProgressColor()}>
-                {formatCurrency(balanceData.balance.currentBalance)}
+                {formatCurrency(balance.currentBalance)}
               </Typography>
             </Box>
             
@@ -147,7 +167,7 @@ const PettyCashBalance = ({ balanceData, isManagerOrAdmin, onUpdateSettings }) =
                   Minimum Limit
                 </Typography>
                 <Typography variant="body1">
-                  {formatCurrency(balanceData.balance.minLimit)}
+                  {formatCurrency(balance.minLimit)}
                 </Typography>
               </Grid>
               <Grid item xs={6}>
@@ -155,12 +175,12 @@ const PettyCashBalance = ({ balanceData, isManagerOrAdmin, onUpdateSettings }) =
                   Maximum Limit
                 </Typography>
                 <Typography variant="body1">
-                  {formatCurrency(balanceData.balance.maxLimit)}
+                  {formatCurrency(balance.maxLimit)}
                 </Typography>
               </Grid>
             </Grid>
             
-            {balanceData.needsReplenishment && (
+            {needsReplenishment && (
               <Alert severity="warning" sx={{ mt: 2 }}>
                 Balance is below minimum threshold!
               </Alert>
@@ -205,7 +225,7 @@ const PettyCashBalance = ({ balanceData, isManagerOrAdmin, onUpdateSettings }) =
                     Date
                   </Typography>
                   <Typography variant="body1">
-                    {formatDate(balanceData.balance.lastReplenishmentDate)}
+                    {formatDate(balance.lastReplenishmentDate)}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
@@ -213,8 +233,8 @@ const PettyCashBalance = ({ balanceData, isManagerOrAdmin, onUpdateSettings }) =
                     Amount
                   </Typography>
                   <Typography variant="body1">
-                    {balanceData.balance.lastReplenishmentAmount ? 
-                      formatCurrency(balanceData.balance.lastReplenishmentAmount) : 
+                    {balance.lastReplenishmentAmount ? 
+                      formatCurrency(balance.lastReplenishmentAmount) : 
                       'N/A'}
                   </Typography>
                 </Grid>
@@ -227,11 +247,11 @@ const PettyCashBalance = ({ balanceData, isManagerOrAdmin, onUpdateSettings }) =
               <Typography variant="subtitle2" gutterBottom>
                 Pending Requests
               </Typography>
-              {balanceData.latestTransactions && balanceData.latestTransactions.filter(tx => 
+              {latestTransactions && latestTransactions.filter(tx => 
                 tx.approvalStatus === 'Pending' && tx.transactionType === 'withdrawal'
               ).length > 0 ? (
                 <Box>
-                  {balanceData.latestTransactions.filter(tx => 
+                  {latestTransactions.filter(tx => 
                     tx.approvalStatus === 'Pending' && tx.transactionType === 'withdrawal'
                   ).slice(0, 3).map(tx => (
                     <Box key={tx._id} sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
@@ -263,9 +283,9 @@ const PettyCashBalance = ({ balanceData, isManagerOrAdmin, onUpdateSettings }) =
               <Typography variant="subtitle2" gutterBottom>
                 Recent Transactions
               </Typography>
-              {balanceData.latestTransactions && balanceData.latestTransactions.length > 0 ? (
+              {latestTransactions && latestTransactions.length > 0 ? (
                 <Box>
-                  {balanceData.latestTransactions.filter(tx => 
+                  {latestTransactions.filter(tx => 
                     tx.approvalStatus === 'Approved'
                   ).slice(0, 3).map(tx => (
                     <Box key={tx._id} sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>

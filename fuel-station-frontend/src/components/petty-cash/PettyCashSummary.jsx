@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, Grid, Paper, Typography, Divider, 
   FormControl, InputLabel, Select, MenuItem, 
-  Card, CardContent, CircularProgress
+  Card, CardContent, CircularProgress, Alert
 } from '@mui/material';
 import { 
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
@@ -12,12 +12,17 @@ import {
 const PettyCashSummary = ({ summary }) => {
   const [period, setPeriod] = useState('month');
   
+  // Log summary data for debugging
+  useEffect(() => {
+    console.log('[PettyCashSummary] Summary data:', summary);
+  }, [summary]);
+  
   // Format currency
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'LKR'
-    }).format(amount);
+    }).format(amount || 0);
   };
 
   // Format date
@@ -36,12 +41,31 @@ const PettyCashSummary = ({ summary }) => {
     // In a real implementation, you would fetch data for the new period
   };
 
+  // Check if we have valid data to display
+  const hasSummaryData = summary && 
+    summary.summary && 
+    typeof summary.summary === 'object';
+
   // Loading state
   if (!summary) {
     return (
       <Box display="flex" justifyContent="center" my={4}>
         <CircularProgress />
       </Box>
+    );
+  }
+
+  // Error state - if summary data is invalid format
+  if (!hasSummaryData) {
+    return (
+      <Alert severity="warning" sx={{ my: 2 }}>
+        <Typography variant="body1">
+          Unable to load summary data. Please try refreshing the page.
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 1 }}>
+          Received data: {JSON.stringify(summary).substring(0, 100)}...
+        </Typography>
+      </Alert>
     );
   }
 
@@ -58,6 +82,14 @@ const PettyCashSummary = ({ summary }) => {
 
   // Prepare data for trends chart
   const trendsData = summary.trend || [];
+
+  // Safe access to summary totals with fallbacks
+  const currentBalance = summary.summary.currentBalance || 0;
+  const totalWithdrawals = summary.summary.totalWithdrawals || 0;
+  const totalReplenishments = summary.summary.totalReplenishments || 0;
+  const netChange = summary.summary.netChange || 0;
+  const withdrawalCount = summary.summary.withdrawalCount || 0;
+  const replenishmentCount = summary.summary.replenishmentCount || 0;
 
   return (
     <Box>
@@ -88,7 +120,7 @@ const PettyCashSummary = ({ summary }) => {
                 Current Balance
               </Typography>
               <Typography variant="h5" component="div">
-                {formatCurrency(summary.summary.currentBalance)}
+                {formatCurrency(currentBalance)}
               </Typography>
             </CardContent>
           </Card>
@@ -100,10 +132,10 @@ const PettyCashSummary = ({ summary }) => {
                 Total Withdrawals
               </Typography>
               <Typography variant="h5" component="div" color="error.main">
-                {formatCurrency(summary.summary.totalWithdrawals)}
+                {formatCurrency(totalWithdrawals)}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {summary.summary.withdrawalCount} transactions
+                {withdrawalCount} transactions
               </Typography>
             </CardContent>
           </Card>
@@ -115,10 +147,10 @@ const PettyCashSummary = ({ summary }) => {
                 Total Replenishments
               </Typography>
               <Typography variant="h5" component="div" color="success.main">
-                {formatCurrency(summary.summary.totalReplenishments)}
+                {formatCurrency(totalReplenishments)}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {summary.summary.replenishmentCount} transactions
+                {replenishmentCount} transactions
               </Typography>
             </CardContent>
           </Card>
@@ -132,12 +164,15 @@ const PettyCashSummary = ({ summary }) => {
               <Typography 
                 variant="h5" 
                 component="div"
-                color={summary.summary.netChange >= 0 ? 'success.main' : 'error.main'}
+                color={netChange >= 0 ? 'success.main' : 'error.main'}
               >
-                {formatCurrency(summary.summary.netChange)}
+                {formatCurrency(netChange)}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {summary.period.name} ({formatDate(summary.period.startDate)} - {formatDate(summary.period.endDate)})
+                {summary.period?.name || period} 
+                {summary.period?.startDate && summary.period?.endDate ? 
+                  ` (${formatDate(summary.period.startDate)} - ${formatDate(summary.period.endDate)})` : 
+                  ''}
               </Typography>
             </CardContent>
           </Card>
