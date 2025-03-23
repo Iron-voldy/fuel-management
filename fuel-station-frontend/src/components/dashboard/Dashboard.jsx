@@ -11,7 +11,9 @@ import {
   useTheme,
   IconButton,
   Tabs,
-  Tab
+  Tab,
+  Alert,
+  AlertTitle
 } from '@mui/material';
 import { 
   TrendingUp, 
@@ -25,6 +27,7 @@ import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, registerables } from 'chart.js';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
+import DashboardService from '../../services/dashboard.service';
 import SalesOverviewChart from './SalesOverviewChart';
 import TopSellingFuelsChart from './TopSellingFuelsChart';
 import ExpensesBreakdownChart from './ExpensesBreakdownChart';
@@ -38,7 +41,7 @@ ChartJS.register(...registerables);
 const Dashboard = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { api, user, logout } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const [dashboardData, setDashboardData] = useState(null);
   const [profitLossData, setProfitLossData] = useState(null);
   const [cashFlowData, setCashFlowData] = useState(null);
@@ -87,13 +90,17 @@ const Dashboard = () => {
       setLoading(true);
       setError(null);
       
-      // Fetch dashboard summary data
-      const res = await api.get(`/dashboard/financial-summary?period=${period}`);
+      // Use the service instead of direct API call
+      const response = await DashboardService.getFinancialSummary({
+        period: period
+      });
       
-      if (res.data && res.data.data) {
-        setDashboardData(res.data.data);
+      if (response.success) {
+        setDashboardData(response.data);
       } else {
-        throw new Error('Invalid dashboard data structure');
+        // Handle error case, but still use the fallback data
+        setDashboardData(response.data);
+        setError(response.error || 'Failed to load dashboard data');
       }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -102,7 +109,7 @@ const Dashboard = () => {
       if (err.response && (err.response.status === 401 || err.response.status === 403)) {
         handleAuthError(err);
       } else {
-        setError(err.response?.data?.error || 'Failed to load dashboard data');
+        setError('Failed to load dashboard data. Please try again later.');
       }
     } finally {
       setLoading(false);
@@ -113,11 +120,16 @@ const Dashboard = () => {
     try {
       setLoadingPL(true);
       
-      // Fetch profit & loss data
-      const res = await api.get(`/dashboard/profit-loss?period=${period}`);
+      // Use the service instead of direct API call
+      const response = await DashboardService.getProfitLossStatement({
+        period: period
+      });
       
-      if (res.data && res.data.data) {
-        setProfitLossData(res.data.data);
+      if (response.success) {
+        setProfitLossData(response.data);
+      } else {
+        // Handle error case, but still use the fallback data
+        setProfitLossData(response.data);
       }
     } catch (err) {
       console.error('Error fetching profit & loss data:', err);
@@ -135,11 +147,16 @@ const Dashboard = () => {
     try {
       setLoadingCF(true);
       
-      // Fetch cash flow data
-      const res = await api.get(`/dashboard/cash-flow?period=${period}`);
+      // Use the service instead of direct API call
+      const response = await DashboardService.getCashFlowStatement({
+        period: period
+      });
       
-      if (res.data && res.data.data) {
-        setCashFlowData(res.data.data);
+      if (response.success) {
+        setCashFlowData(response.data);
+      } else {
+        // Handle error case, but still use the fallback data
+        setCashFlowData(response.data);
       }
     } catch (err) {
       console.error('Error fetching cash flow data:', err);
@@ -200,31 +217,8 @@ const Dashboard = () => {
     );
   }
 
-  if (error) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Paper sx={{ p: 3, bgcolor: 'error.light', color: 'error.contrastText' }}>
-          <Typography variant="h6">
-            Error: {error}
-          </Typography>
-          <Typography variant="body1" sx={{ mt: 2 }}>
-            Please try refreshing the page or contact support if the problem persists.
-          </Typography>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            sx={{ mt: 2 }}
-            onClick={() => window.location.reload()}
-          >
-            Refresh Page
-          </Button>
-        </Paper>
-      </Box>
-    );
-  }
-
   return (
-    <Box sx={{ flexGrow: 1, p: 3, backgroundColor: '#f5f7fa', minHeight: '100vh' }}>
+    <Box sx={{ flexGrow:.1, p: 3, backgroundColor: '#f5f7fa', minHeight: '100vh' }}>
       {/* Header section */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
@@ -284,6 +278,30 @@ const Dashboard = () => {
           </IconButton>
         </Box>
       </Box>
+
+      {/* Error message alert */}
+      {error && (
+        <Alert 
+          severity="warning" 
+          sx={{ mb: 3 }}
+          action={
+            <Button 
+              color="inherit" 
+              size="small"
+              onClick={() => {
+                fetchDashboardData(timeframe);
+                fetchProfitLossData(timeframe);
+                fetchCashFlowData(timeframe);
+              }}
+            >
+              Try Again
+            </Button>
+          }
+        >
+          <AlertTitle>Warning</AlertTitle>
+          {error} — <strong>Using demo data for visualization</strong>
+        </Alert>
+      )}
       
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -293,7 +311,7 @@ const Dashboard = () => {
             value={dashboardData?.salesSummary?.totalSales || 0} 
             icon={<ReceiptLong />}
             color="#4caf50"
-            subtitle={`${dashboardData?.salesSummary?.totalQuantity?.toLocaleString() || 0} liters`}
+            subtitle={`${(dashboardData?.salesSummary?.totalQuantity || 0).toLocaleString()} liters`}
             trend={dashboardData?.performanceMetrics?.changes?.revenueChange}
           />
         </Grid>
@@ -315,7 +333,7 @@ const Dashboard = () => {
             value={dashboardData?.profitSummary?.grossProfit || 0}
             icon={<TrendingUp />}
             color="#2196f3"
-            subtitle={`${dashboardData?.profitSummary?.profitMargin?.toFixed(2) || 0}% margin`}
+            subtitle={`${(dashboardData?.profitSummary?.profitMargin || 0).toFixed(2)}% margin`}
             trend={dashboardData?.performanceMetrics?.changes?.profitChange}
           />
         </Grid>
@@ -402,7 +420,7 @@ const Dashboard = () => {
               </Box>
               <Divider sx={{ mb: 3 }} />
               
-              {dashboardData?.topSellingFuels ? (
+              {dashboardData?.topSellingFuels && dashboardData.topSellingFuels.length > 0 ? (
                 <TopSellingFuelsChart data={dashboardData.topSellingFuels} />
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
@@ -489,19 +507,19 @@ const Dashboard = () => {
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="body2" color="text.secondary">Total Inflows</Typography>
                   <Typography variant="h6" color="success.main">
-                    LKR {cashFlowData?.summary?.totalInflows?.toLocaleString() || 0}
+                    LKR {(cashFlowData?.summary?.totalInflows || 0).toLocaleString()}
                   </Typography>
                 </Box>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="body2" color="text.secondary">Total Outflows</Typography>
                   <Typography variant="h6" color="error.main">
-                    LKR {cashFlowData?.summary?.totalOutflows?.toLocaleString() || 0}
+                    LKR {(cashFlowData?.summary?.totalOutflows || 0).toLocaleString()}
                   </Typography>
                 </Box>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="body2" color="text.secondary">Net Cash Flow</Typography>
-                  <Typography variant="h6" color={cashFlowData?.summary?.netCashFlow >= 0 ? 'success.main' : 'error.main'}>
-                    LKR {cashFlowData?.summary?.netCashFlow?.toLocaleString() || 0}
+                  <Typography variant="h6" color={(cashFlowData?.summary?.netCashFlow || 0) >= 0 ? 'success.main' : 'error.main'}>
+                    LKR {(cashFlowData?.summary?.netCashFlow || 0).toLocaleString()}
                   </Typography>
                 </Box>
               </Box>
@@ -526,7 +544,7 @@ const Dashboard = () => {
               </Box>
               <Divider sx={{ mb: 3 }} />
               
-              {dashboardData?.topExpenseCategories ? (
+              {dashboardData?.topExpenseCategories && dashboardData.topExpenseCategories.length > 0 ? (
                 <ExpensesBreakdownChart data={dashboardData.topExpenseCategories} />
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
@@ -603,7 +621,7 @@ const Dashboard = () => {
                           }}
                         >
                           <Typography variant="body2">
-                            {expense.category} - {expense.description.substring(0, 30)}{expense.description.length > 30 ? '...' : ''} - LKR {expense.amount.toLocaleString()} ({new Date(expense.date).toLocaleDateString()})
+                            {expense.category} - {expense.description?.substring(0, 30)}{expense.description?.length > 30 ? '...' : ''} - LKR {expense.amount.toLocaleString()} ({new Date(expense.date).toLocaleDateString()})
                           </Typography>
                         </Box>
                       ))}
