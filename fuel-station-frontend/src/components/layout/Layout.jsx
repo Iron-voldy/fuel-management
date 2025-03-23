@@ -16,7 +16,8 @@ import {
   MenuItem,
   Avatar,
   useMediaQuery,
-  useTheme
+  useTheme,
+  ListSubheader
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -28,6 +29,7 @@ import PaymentsIcon from '@mui/icons-material/Payments';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
+import SavingsIcon from '@mui/icons-material/Savings';
 import AuthContext from '../../context/AuthContext';
 
 const drawerWidth = 240;
@@ -68,42 +70,82 @@ const Layout = () => {
     }
   };
 
-  // Menu items
+  // Menu items with proper categorization
   const menuItems = [
     {
-      text: 'Dashboard',
-      icon: <DashboardIcon />,
-      path: '/dashboard'
+      category: null, // No category for main items
+      items: [
+        {
+          text: 'Dashboard',
+          icon: <DashboardIcon />,
+          path: '/dashboard'
+        }
+      ]
     },
     {
-      text: 'Bank & Accounts',
-      icon: <AccountBalanceIcon />,
-      path: '/bank-accounts'
+      category: "Financial Management",
+      items: [
+        {
+          text: 'Bank Accounts',
+          icon: <AccountBalanceIcon />,
+          path: '/bank-accounts'
+        },
+        {
+          text: 'Petty Cash',
+          icon: <SavingsIcon />,
+          path: '/petty-cash'
+        },
+        {
+          text: 'Expenses',
+          icon: <PaymentsIcon />,
+          path: '/expenses'
+        }
+      ]
     },
     {
-      text: 'Sales',
-      icon: <ReceiptIcon />,
-      path: '/sales'
+      category: "HR Management",
+      items: [
+        {
+          text: 'Employees',
+          icon: <PeopleIcon />,
+          path: '/employees'
+        },
+        {
+          text: 'Payroll',
+          icon: <PaymentsIcon />,
+          path: '/payroll'
+        },
+        {
+          text: 'Loans',
+          icon: <PaymentsIcon />,
+          path: '/loans'
+        }
+      ]
     },
     {
-      text: 'Inventory',
-      icon: <InventoryIcon />,
-      path: '/inventory'
-    },
-    {
-      text: 'Customers',
-      icon: <PeopleIcon />,
-      path: '/customers'
-    },
-    {
-      text: 'Expenses',
-      icon: <PaymentsIcon />,
-      path: '/expenses'
-    },
-    {
-      text: 'Reports',
-      icon: <AssessmentIcon />,
-      path: '/reports'
+      category: "Operations",
+      items: [
+        {
+          text: 'Sales',
+          icon: <ReceiptIcon />,
+          path: '/sales'
+        },
+        {
+          text: 'Inventory',
+          icon: <InventoryIcon />,
+          path: '/inventory'
+        },
+        {
+          text: 'Customers',
+          icon: <PeopleIcon />,
+          path: '/customers'
+        },
+        {
+          text: 'Reports',
+          icon: <AssessmentIcon />,
+          path: '/reports'
+        }
+      ]
     }
   ];
 
@@ -116,20 +158,32 @@ const Layout = () => {
       </Toolbar>
       <Divider />
       <List>
-        {menuItems.map((item) => (
-          <ListItem 
-            button 
-            key={item.text} 
-            onClick={() => navigateTo(item.path)}
-            sx={{ 
-              '&:hover': {
-                backgroundColor: 'rgba(0, 0, 0, 0.04)'
-              }
-            }}
-          >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.text} />
-          </ListItem>
+        {menuItems.map((section, sectionIndex) => (
+          <React.Fragment key={`section-${sectionIndex}`}>
+            {section.category && (
+              <ListSubheader disableSticky>
+                {section.category}
+              </ListSubheader>
+            )}
+            
+            {section.items.map((item) => (
+              <ListItem 
+                button 
+                key={item.text} 
+                onClick={() => navigateTo(item.path)}
+                sx={{ 
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                  }
+                }}
+              >
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.text} />
+              </ListItem>
+            ))}
+            
+            {sectionIndex < menuItems.length - 1 && <Divider sx={{ my: 1 }} />}
+          </React.Fragment>
         ))}
       </List>
     </div>

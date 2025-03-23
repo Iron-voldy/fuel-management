@@ -1,4 +1,5 @@
 import axios from 'axios';
+import pettyCashAPI from './petty-cash.service';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -45,7 +46,7 @@ const api = axios.create({
   );
   
 // Auth API
-export const authAPI = {
+const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   register: (userData) => api.post('/auth/register', userData),
   getUser: () => api.get('/auth/user')
@@ -54,7 +55,7 @@ export const authAPI = {
 
 
 // Dashboard API
-export const dashboardAPI = {
+const dashboardAPI = {
   getFinancialSummary: () => api.get('/dashboard/financial-summary'),
   getProfitLoss: (params) => api.get('/dashboard/profit-loss', { params }),
   getBalanceSheet: (params) => api.get('/dashboard/balance-sheet', { params }),
@@ -63,7 +64,7 @@ export const dashboardAPI = {
 };
 
 // Bank Account API
-export const bankAccountAPI = {
+const bankAccountAPI = {
   getAll: () => api.get('/bank-book/accounts'),
   getById: (id) => api.get(`/bank-book/accounts/${id}`),
   create: (accountData) => api.post('/bank-book/accounts', accountData),
@@ -75,7 +76,7 @@ export const bankAccountAPI = {
 };
 
 // Transaction API
-export const transactionAPI = {
+const transactionAPI = {
   getAll: (params) => api.get('/bank-book/transactions', { params }),
   getById: (id) => api.get(`/bank-book/transactions/${id}`),
   create: (transactionData) => api.post('/bank-book/transactions', transactionData),
@@ -87,7 +88,7 @@ export const transactionAPI = {
 };
 
 // Expense API
-export const expenseAPI = {
+const expenseAPI = {
   getAll: (params) => api.get('/expenses', { params }),
   getById: (id) => api.get(`/expenses/${id}`),
   create: (expenseData) => api.post('/expenses', expenseData),
@@ -99,7 +100,7 @@ export const expenseAPI = {
 };
 
 // Sales API
-export const salesAPI = {
+const salesAPI = {
   getAll: (params) => api.get('/sales', { params }),
   getById: (id) => api.get(`/sales/${id}`),
   create: (saleData) => api.post('/sales', saleData),
@@ -112,7 +113,7 @@ export const salesAPI = {
 };
 
 // Inventory API
-export const inventoryAPI = {
+const inventoryAPI = {
   getAll: (params) => api.get('/inventory', { params }),
   getById: (id) => api.get(`/inventory/${id}`),
   create: (inventoryData) => api.post('/inventory', inventoryData),
@@ -127,7 +128,7 @@ export const inventoryAPI = {
 };
 
 // Customer API
-export const customerAPI = {
+const customerAPI = {
   getAll: (params) => api.get('/customers', { params }),
   getById: (id) => api.get(`/customers/${id}`),
   create: (customerData) => api.post('/customers', customerData),
@@ -138,10 +139,6 @@ export const customerAPI = {
   getCreditReport: (id, params) => api.get(`/customers/${id}/credit-report`, { params })
 };
 
-// This code should be added to src/services/api.js
-
-// Add this function to handle file downloads using the responseType: 'blob' option
-
 /**
  * General function for downloading files from API
  * @param {string} endpoint - API endpoint
@@ -150,7 +147,7 @@ export const customerAPI = {
  * @param {string} fileFormat - File format (pdf, xlsx, csv)
  * @returns {Promise} - Promise for the download process
  */
-export const downloadFile = async (endpoint, params, filename, fileFormat) => {
+const downloadFile = async (endpoint, params, filename, fileFormat) => {
   try {
     // Set the appropriate response type for file downloads
     const response = await api.get(endpoint, {
@@ -185,8 +182,8 @@ export const downloadFile = async (endpoint, params, filename, fileFormat) => {
   }
 };
 
-// Update the reports API section
-export const reportsAPI = {
+// Reports API
+const reportsAPI = {
   generateSalesReport: (params) => {
     // If format is not json, use the download function
     if (params.format && params.format !== 'json') {
@@ -243,7 +240,7 @@ export const reportsAPI = {
 };
 
 // Invoice API
-export const invoiceAPI = {
+const invoiceAPI = {
   getAll: (params) => api.get('/invoices', { params }),
   getById: (id) => api.get(`/invoices/${id}`),
   create: (invoiceData) => api.post('/invoices', invoiceData),
@@ -252,6 +249,21 @@ export const invoiceAPI = {
   recordPayment: (id, paymentData) => api.post(`/invoices/${id}/payment`, paymentData),
   generateFromSales: (data) => api.post('/invoices/generate-from-sales', data),
   getAgingReport: (params) => api.get('/invoices/aging-report', { params })
+};
+
+export {
+  authAPI,
+  dashboardAPI,
+  bankAccountAPI,
+  transactionAPI,
+  expenseAPI,
+  salesAPI,
+  inventoryAPI,
+  customerAPI,
+  reportsAPI,
+  invoiceAPI,
+  pettyCashAPI,
+  downloadFile
 };
 
 export default api;

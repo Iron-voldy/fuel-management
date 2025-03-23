@@ -24,6 +24,9 @@ import SalesPage from './components/sales/SalesPage';
 import CustomersPage from './pages/CustomersPage';
 import ReportPage from './pages/ReportsPage';
 
+// Financial Components
+import PettyCashPage from './components/petty-cash/PettyCashPage';
+
 // Create a theme
 const theme = createTheme({
   palette: {
@@ -74,12 +77,22 @@ function App() {
               <Route element={<ProtectedRoute />}>
                 <Route element={<Layout />}>
                   <Route path="/dashboard" element={<Dashboard />} />
+                  
+                  {/* Financial Management Routes */}
                   <Route path="/bank-accounts" element={<BankAccountsPage />} />
-                  <Route path="/sales"  element={<SalesPage />}  />
+                  <Route path="/petty-cash" element={<PettyCashPage />} />
+                  <Route path="/expenses" element={<div>Expenses Page (Coming Soon)</div>} />
+                  
+                  {/* HR Management Routes */}
+                  <Route path="/employees" element={<div>Employees Page (Coming Soon)</div>} />
+                  <Route path="/payroll" element={<div>Payroll Page (Coming Soon)</div>} />
+                  <Route path="/loans" element={<div>Loans Page (Coming Soon)</div>} />
+                  
+                  {/* Other Routes */}
+                  <Route path="/sales" element={<SalesPage />} />
                   <Route path="/inventory" element={<div>Inventory Page (Coming Soon)</div>} />
                   <Route path="/customers" element={<CustomersPage />} />
-                  <Route path="/expenses" element={<div>Expenses Page (Coming Soon)</div>} />
-                  <Route path="/reports"   element={<ReportPage />}  />
+                  <Route path="/reports" element={<ReportPage />} />
                 </Route>
               </Route>
               
