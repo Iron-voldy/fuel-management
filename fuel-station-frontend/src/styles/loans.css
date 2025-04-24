@@ -1,0 +1,94 @@
+/* Loans Page Styles */
+.loans-page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .loans-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .loan-form {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+  
+  .loan-form .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .loan-form label {
+    display: block;
+    margin-bottom: 5px;
+  }
+  
+  .loan-form input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .loan-form .error {
+    color: red;
+    font-size: 0.8em;
+    margin-top: 5px;
+  }
+  
+  .loan-list table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .loan-list th, .loan-list td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+  }
+  
+  .loan-list th {
+    background-color: #f2f2f2;
+  }
+  
+  .loan-details {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+  }
+  
+  .loan-details table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+  }
+  
+  .loan-details th, .loan-details td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+  }
+  
+  button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  button:hover {
+    background-color: #2980b9;
+  }
+  
+  button:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+  }

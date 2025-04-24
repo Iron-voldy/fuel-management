@@ -4,7 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-
+import './styles/loans.css';
 // Context providers
 import { AuthProvider } from './context/AuthContext';
 
@@ -24,6 +24,8 @@ import SalesPage from './components/sales/SalesPage';
 import CustomersPage from './pages/CustomersPage';
 import ReportPage from './pages/ReportsPage';
 import ExpencesPage from './pages/ExpensesPage';
+import LoansPage from './pages/LoansPage';
+import EmployeesPage from './pages/EmployeesPage';
 
 
 // Financial Components
@@ -86,9 +88,9 @@ function App() {
                   <Route path="/expenses" element={<ExpencesPage/>} />
                   
                   {/* HR Management Routes */}
-                  <Route path="/employees" element={<div>Employees Page (Coming Soon)</div>} />
+                  <Route path="/employees" element={<EmployeesPage />} />
                   <Route path="/payroll" element={<div>Payroll Page (Coming Soon)</div>} />
-                  <Route path="/loans" element={<div>Loans Page (Coming Soon)</div>} />
+                  <Route path="/loans" element={<LoansPage />} />
                   
                   {/* Other Routes */}
                   <Route path="/sales" element={<SalesPage />} />
