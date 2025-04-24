@@ -1,5 +1,5 @@
 {
-    "mongoURI": "mongodb+srv://sithmi:12123@fuel-station.44ags.mongodb.net/?retryWrites=true&w=majority&appName=fuel-station",
+    "mongoURI": "mongodb+srv://kalanakarunarathna:anjana2001@cluster0.79esu.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
     "jwtSecret": "28efbd2ee3d1625d41c9194718e1bc93",
     "jwtExpiration": 86400,
     "port": 5000,

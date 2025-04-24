@@ -27,10 +27,10 @@ import AuthContext from '../../context/AuthContext';
 
 // Background and accent colors
 const COLORS = {
-  primary: '#1976d2',
+  primary: '#FFA500',
   secondary: '#f50057',
   background: '#f8f9fa',
-  accent: '#3f51b5',
+  accent: '#FF5349',
   success: '#4caf50',
   card: '#ffffff',
   textPrimary: '#333333',
@@ -153,13 +153,13 @@ const Login = () => {
                              url('https://source.unsplash.com/random/1200x900/?fuel,station')`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-                display: 'flex',
-                flexDirection: 'column',
+                display: 'flex', 
+                flexDirection: 'column', 
                 justifyContent: 'center',
                 alignItems: 'center',
                 color: 'white',
                 padding: 5,
-                position: 'relative'
+                position: 'relative'  
               }}
             >
               <Box 

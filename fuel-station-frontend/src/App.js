@@ -23,6 +23,8 @@ import BankAccountsPage from './components/bank-book/BankAccountsPage';
 import SalesPage from './components/sales/SalesPage';
 import CustomersPage from './pages/CustomersPage';
 import ReportPage from './pages/ReportsPage';
+import ExpencesPage from './pages/ExpensesPage';
+
 
 // Financial Components
 import PettyCashPage from './components/petty-cash/PettyCashPage';
@@ -81,7 +83,7 @@ function App() {
                   {/* Financial Management Routes */}
                   <Route path="/bank-accounts" element={<BankAccountsPage />} />
                   <Route path="/petty-cash" element={<PettyCashPage />} />
-                  <Route path="/expenses" element={<div>Expenses Page (Coming Soon)</div>} />
+                  <Route path="/expenses" element={<ExpencesPage/>} />
                   
                   {/* HR Management Routes */}
                   <Route path="/employees" element={<div>Employees Page (Coming Soon)</div>} />
