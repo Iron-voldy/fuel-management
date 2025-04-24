@@ -89,12 +89,10 @@ function App() {
                   
                   {/* HR Management Routes */}
                   <Route path="/employees" element={<EmployeesPage />} />
-                  <Route path="/payroll" element={<div>Payroll Page (Coming Soon)</div>} />
                   <Route path="/loans" element={<LoansPage />} />
                   
                   {/* Other Routes */}
                   <Route path="/sales" element={<SalesPage />} />
-                  <Route path="/inventory" element={<div>Inventory Page (Coming Soon)</div>} />
                   <Route path="/customers" element={<CustomersPage />} />
                   <Route path="/reports" element={<ReportPage />} />
                 </Route>
